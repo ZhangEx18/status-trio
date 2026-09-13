@@ -6,6 +6,18 @@
     <description>Most recent changes for Status Trio.</description>
     <language>en</language>
     <item>
+      <title>Version 1.0.2 (Build 3)</title>
+      <pubDate>Sun, 13 Sep 2026 13:42:57 +0000</pubDate>
+      <sparkle:version>3</sparkle:version>
+      <sparkle:shortVersionString>1.0.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[<ul><li>Popup 内滚动调节音量。</li><li>优化触控板连续调节并同步显示音量。</li><li>保留输出设备列表的独立滚动行为。</li></ul>]]></description>
+      <enclosure url="https://github.com/lingyired/status-trio/releases/download/v1.0.2/StatusTrio-1.0.2.dmg"
+                 type="application/octet-stream"
+                 sparkle:edSignature="D45DY/TuhPhDTO4Bg2LylU29Tofr7YemdXI0rB0nlZC6X5ncBc2heF44lbHTpLqgCFeqo34NLYTknGXFcsbCAw=="
+                 length="2276356" />
+    </item>
+    <item>
       <title>Version 1.0.1 (Build 2)</title>
       <pubDate>Sun, 13 Sep 2026 12:51:03 +0000</pubDate>
       <sparkle:version>2</sparkle:version>
