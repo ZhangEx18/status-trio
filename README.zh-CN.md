@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="screenshots/status-style.png" width="288" alt="不同设置下呈现的四种 Status Trio 菜单栏图标样式">
+</p>
+
 # Status Trio
 
 <p align="center">

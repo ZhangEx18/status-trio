@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="screenshots/status-style.png" width="288" alt="Four Status Trio menu bar icon styles rendered from different settings">
+</p>
+
 # Status Trio
 
 <p align="center">
