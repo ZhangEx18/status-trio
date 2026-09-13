@@ -8,6 +8,7 @@ final class SystemStatusStore: ObservableObject {
 
     @Published private(set) var snapshot: StatusSnapshot
     @Published private(set) var popupSnapshot: StatusSnapshot
+    @Published private(set) var liveVolume: VolumeStatus
 
     private let batteryMonitor: any BatteryMonitoring
     private let wifiMonitor: any WiFiMonitoring
@@ -49,6 +50,7 @@ final class SystemStatusStore: ObservableObject {
         self.wakeNotificationCenter = wakeNotificationCenter
         self.snapshot = initialSnapshot
         self.popupSnapshot = initialSnapshot
+        self.liveVolume = initialSnapshot.volume
     }
 
     deinit {
@@ -141,16 +143,28 @@ final class SystemStatusStore: ObservableObject {
     }
 
     var isVolumeControlAvailable: Bool {
-        volumeController != nil && popupSnapshot.volume.scalar != nil
+        volumeController != nil && liveVolume.scalar != nil
     }
 
     func setVolume(_ scalar: Double) {
-        guard !hasStopped else { return }
-        volumeController?.setVolume(scalar)
+        guard !hasStopped,
+              volumeController != nil,
+              scalar.isFinite else {
+            return
+        }
+        liveVolume = liveVolume.replacingScalar(min(1, max(0, scalar)))
+        publish(snapshot.replacingVolume(liveVolume))
+        volumeController?.setVolume(liveVolume.scalar ?? 0)
     }
 
     func toggleMute() {
-        guard !hasStopped else { return }
+        guard !hasStopped,
+              volumeController != nil,
+              liveVolume.scalar != nil else {
+            return
+        }
+        liveVolume = liveVolume.replacingMuted(!liveVolume.isMuted)
+        publish(snapshot.replacingVolume(liveVolume))
         volumeController?.toggleMute()
     }
 
@@ -194,6 +208,7 @@ final class SystemStatusStore: ObservableObject {
     }
 
     private func applyVolume(_ value: VolumeStatus) {
+        liveVolume = value
         publish(snapshot.replacingVolume(value))
     }
 
@@ -216,6 +231,26 @@ final class SystemStatusStore: ObservableObject {
             guard !Task.isCancelled else { return }
             self.popupSnapshot = next
         }
+    }
+}
+
+private extension VolumeStatus {
+    func replacingScalar(_ scalar: Double) -> VolumeStatus {
+        VolumeStatus(
+            scalar: scalar,
+            isMuted: isMuted,
+            deviceName: deviceName,
+            outputDevices: outputDevices
+        )
+    }
+
+    func replacingMuted(_ isMuted: Bool) -> VolumeStatus {
+        VolumeStatus(
+            scalar: scalar,
+            isMuted: isMuted,
+            deviceName: deviceName,
+            outputDevices: outputDevices
+        )
     }
 }
 
