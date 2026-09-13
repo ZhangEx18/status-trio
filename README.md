@@ -22,7 +22,7 @@
   <img src="screenshots/popup.png" width="360" alt="Status Trio popover showing battery, Wi-Fi, and volume controls in the macOS menu bar">
 </p>
 
-Status Trio combines Wi-Fi, battery, and volume into one compact, configurable menu bar icon. It is inspired by the iPhone Duo's combined status bar icon for Wi-Fi, Battery, and Cellular Data, adapted for Mac with Volume instead of Cellular Data.
+Status Trio is a native macOS menubar app that combines Wi-Fi, battery, and volume into one compact, configurable menu bar icon. It is inspired by the iPhone Duo's combined status bar icon for Wi-Fi, Battery, and Cellular Data, adapted for Mac with Volume instead of Cellular Data.
 
 > Status Trio is an independent project and is not affiliated with Apple.
 
