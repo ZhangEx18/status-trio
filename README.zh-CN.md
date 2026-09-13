@@ -136,6 +136,12 @@ bash scripts/build-worktree.sh release
 - [菜单栏图标 SVG](status-menubar.svg)
 - [数据驱动图标演示](status-menubar-demo.html)
 
+## 许可证
+
+Copyright 2026 lingyired。
+
+本项目采用 Apache License 2.0 许可。详见 [LICENSE](LICENSE) 和 [NOTICE](NOTICE)。
+
 ## 作者
 
 由 [lingyired](https://github.com/lingyired) 创建并维护。<br>

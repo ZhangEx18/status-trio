@@ -136,6 +136,12 @@ The single-instance lock is scoped by bundle identifier, so differently identifi
 - [Menu bar icon SVG](status-menubar.svg)
 - [Data-driven icon demo](status-menubar-demo.html)
 
+## License
+
+Copyright 2026 lingyired.
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
 ## Author
 
 Created and maintained by [lingyired](https://github.com/lingyired).<br>
