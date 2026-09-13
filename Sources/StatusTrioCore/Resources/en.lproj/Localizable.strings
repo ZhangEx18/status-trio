@@ -30,7 +30,7 @@
 "settings.battery.title" = "Battery Display";
 "settings.battery.showPercentage" = "Show battery percentage";
 "settings.battery.showChargingIndicator" = "Show bolt while charging or connected to power";
-"settings.battery.chargingDescription" = "When enabled, the percentage becomes a white bolt while charging or connected to power.";
+"settings.battery.chargingDescription" = "When enabled, the percentage becomes a bolt while charging or connected to power.";
 "settings.battery.symbolScale" = "Percentage/bolt size";
 "settings.battery.symbolScaleAccessibility" = "Battery percentage and bolt size";
 "settings.battery.symbolScaleDescription" = "The percentage and bolt share this size.";

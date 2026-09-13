@@ -25,7 +25,7 @@
 "settings.battery.title" = "عرض البطارية";
 "settings.battery.showPercentage" = "إظهار نسبة البطارية";
 "settings.battery.showChargingIndicator" = "إظهار رمز البرق أثناء الشحن أو الاتصال بالطاقة";
-"settings.battery.chargingDescription" = "عند التفعيل، تتحول النسبة إلى رمز برق أبيض أثناء الشحن أو الاتصال بالطاقة.";
+"settings.battery.chargingDescription" = "عند التفعيل، تتحول النسبة إلى رمز برق أثناء الشحن أو الاتصال بالطاقة.";
 "settings.battery.symbolScale" = "حجم النسبة/البرق";
 "settings.battery.symbolScaleAccessibility" = "حجم نسبة البطارية ورمز البرق";
 "settings.battery.symbolScaleDescription" = "تستخدم النسبة ورمز البرق الحجم نفسه.";

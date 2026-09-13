@@ -30,12 +30,12 @@
 "settings.battery.title" = "電池顯示";
 "settings.battery.showPercentage" = "顯示電量數字";
 "settings.battery.showChargingIndicator" = "充電/連接電源時顯示閃電";
-"settings.battery.chargingDescription" = "開啟後，正在充電或已連接電源時，電量數字會替換為白色閃電；關閉則繼續顯示數字。";
+"settings.battery.chargingDescription" = "開啟後，正在充電或已連接電源時，電量數字會替換為閃電；關閉則繼續顯示數字。";
 "settings.battery.symbolScale" = "電量數字/閃電大小";
 "settings.battery.symbolScaleAccessibility" = "電量數字和閃電大小";
 "settings.battery.symbolScaleDescription" = "數字和閃電使用相同尺寸，調整這裡會同步改變兩者。";
 "settings.battery.statusColors" = "依狀態變更圓弧顏色";
-"settings.battery.statusColorsDescription" = "低電量顯示紅色，省電模式顯示黃色，連接電源或正在充電顯示綠色。關閉後圓弧使用一般前景色，數字和閃電仍為白色。";
+"settings.battery.statusColorsDescription" = "低電量顯示紅色，省電模式顯示黃色，連接電源或正在充電顯示綠色。關閉後圓弧使用一般前景色。";
 "settings.battery.criticalThreshold" = "低電量門檻";
 "settings.battery.criticalThresholdDescription" = "低於此門檻時視為低電量，並以紅色顯示。";
 "settings.updates.title" = "更新";

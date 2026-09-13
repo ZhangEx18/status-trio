@@ -100,6 +100,30 @@ final class StatusIconRendererTests: XCTestCase {
         ))
     }
 
+    func testChargingStateUsesDarkerGreenForLightMenuBar() throws {
+        let snapshot = StatusSnapshot(
+            battery: makeBattery(rawPercentage: 50, isCharging: true),
+            wifi: .placeholder,
+            volume: .placeholder
+        )
+        let pixels = try PixelBuffer(
+            image: try XCTUnwrap(StatusIconRenderer.render(
+                snapshot: snapshot,
+                size: 20,
+                scale: 8,
+                foreground: CGColor(gray: 0, alpha: 1)
+            ))
+        )
+
+        XCTAssertTrue(pixels.containsColor(
+            red: 31.0 / 255.0,
+            green: 143.0 / 255.0,
+            blue: 61.0 / 255.0,
+            tolerance: 0.08,
+            minimumAlpha: 0.9
+        ))
+    }
+
     func testOffAndUnavailableStatesDrawSlashOutsideWiFiArcs() throws {
         let offSnapshot = StatusSnapshot(
             battery: .placeholder,
@@ -217,6 +241,30 @@ final class StatusIconRendererTests: XCTestCase {
         ))
     }
 
+    func testLowPowerStateUsesDarkerYellowForLightMenuBar() throws {
+        let snapshot = StatusSnapshot(
+            battery: makeBattery(rawPercentage: 50, isLowPowerMode: true),
+            wifi: .placeholder,
+            volume: .placeholder
+        )
+        let pixels = try PixelBuffer(
+            image: try XCTUnwrap(StatusIconRenderer.render(
+                snapshot: snapshot,
+                size: 20,
+                scale: 8,
+                foreground: CGColor(gray: 0, alpha: 1)
+            ))
+        )
+
+        XCTAssertTrue(pixels.containsColor(
+            red: 201.0 / 255.0,
+            green: 151.0 / 255.0,
+            blue: 0,
+            tolerance: 0.08,
+            minimumAlpha: 0.9
+        ))
+    }
+
 
     func testBatteryPercentageCanBeHidden() throws {
         let snapshot = StatusSnapshot(
@@ -260,7 +308,7 @@ final class StatusIconRendererTests: XCTestCase {
         )
     }
 
-    func testBatteryPercentageIsAlwaysWhite() throws {
+    func testBatteryPercentageFollowsForegroundColor() throws {
         let batteries = [
             makeBattery(rawPercentage: 50),
             makeBattery(rawPercentage: 50, isLowPowerMode: true),
@@ -282,6 +330,13 @@ final class StatusIconRendererTests: XCTestCase {
             )
 
             XCTAssertTrue(pixels.containsColor(
+                red: 0,
+                green: 0,
+                blue: 0,
+                tolerance: 0.08,
+                minimumAlpha: 0.9
+            ))
+            XCTAssertFalse(pixels.containsColor(
                 red: 1,
                 green: 1,
                 blue: 1,
@@ -470,7 +525,7 @@ final class StatusIconRendererTests: XCTestCase {
         )
     }
 
-    func testChargingBoltIsWhiteWhenStatusColorsAreDisabled() throws {
+    func testChargingBoltFollowsForegroundColor() throws {
         let snapshot = StatusSnapshot(
             battery: makeBattery(rawPercentage: 50, isCharging: true),
             wifi: .placeholder,
@@ -492,6 +547,13 @@ final class StatusIconRendererTests: XCTestCase {
         )
 
         XCTAssertTrue(pixels.containsColor(
+            red: 0,
+            green: 0,
+            blue: 0,
+            tolerance: 0.08,
+            minimumAlpha: 0.9
+        ))
+        XCTAssertFalse(pixels.containsColor(
             red: 1,
             green: 1,
             blue: 1,

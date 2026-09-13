@@ -30,12 +30,12 @@
 "settings.battery.title" = "バッテリー表示";
 "settings.battery.showPercentage" = "バッテリー残量を表示";
 "settings.battery.showChargingIndicator" = "充電中または電源接続時に稲妻を表示";
-"settings.battery.chargingDescription" = "有効にすると、充電中または電源接続時に残量が白い稲妻に変わります。無効の場合は残量を表示します。";
+"settings.battery.chargingDescription" = "有効にすると、充電中または電源接続時に残量が稲妻に変わります。無効の場合は残量を表示します。";
 "settings.battery.symbolScale" = "残量/稲妻のサイズ";
 "settings.battery.symbolScaleAccessibility" = "バッテリー残量と稲妻のサイズ";
 "settings.battery.symbolScaleDescription" = "残量と稲妻は同じサイズを使用します。";
 "settings.battery.statusColors" = "バッテリー状態で円弧を色分け";
-"settings.battery.statusColorsDescription" = "残量不足は赤、低電力モードは黄、充電中または電源接続時は緑で表示します。オフの場合は通常の前景色を使用し、残量と稲妻は白のままです。";
+"settings.battery.statusColorsDescription" = "残量不足は赤、低電力モードは黄、充電中または電源接続時は緑で表示します。オフの場合は通常の前景色を使用します。";
 "settings.battery.criticalThreshold" = "低残量のしきい値";
 "settings.battery.criticalThresholdDescription" = "この値未満を低残量として赤で表示します。";
 "settings.updates.title" = "アップデート";

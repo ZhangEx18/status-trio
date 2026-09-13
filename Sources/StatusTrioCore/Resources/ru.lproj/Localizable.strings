@@ -30,7 +30,7 @@
 "settings.battery.title" = "Отображение батареи";
 "settings.battery.showPercentage" = "Показывать процент заряда";
 "settings.battery.showChargingIndicator" = "Показывать молнию при зарядке или питании от сети";
-"settings.battery.chargingDescription" = "Если включено, процент заменяется белой молнией во время зарядки или при питании от сети.";
+"settings.battery.chargingDescription" = "Если включено, процент заменяется молнией во время зарядки или при питании от сети.";
 "settings.battery.symbolScale" = "Размер процента и молнии";
 "settings.battery.symbolScaleAccessibility" = "Размер процента батареи и молнии";
 "settings.battery.symbolScaleDescription" = "Процент и молния используют один размер.";

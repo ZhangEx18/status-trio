@@ -30,7 +30,7 @@
 "settings.battery.title" = "Exibição da bateria";
 "settings.battery.showPercentage" = "Mostrar porcentagem da bateria";
 "settings.battery.showChargingIndicator" = "Mostrar raio ao carregar ou conectar à energia";
-"settings.battery.chargingDescription" = "Quando ativado, a porcentagem vira um raio branco durante o carregamento ou com energia conectada.";
+"settings.battery.chargingDescription" = "Quando ativado, a porcentagem vira um raio durante o carregamento ou com energia conectada.";
 "settings.battery.symbolScale" = "Tamanho da porcentagem/raio";
 "settings.battery.symbolScaleAccessibility" = "Tamanho da porcentagem e do raio da bateria";
 "settings.battery.symbolScaleDescription" = "A porcentagem e o raio usam o mesmo tamanho.";

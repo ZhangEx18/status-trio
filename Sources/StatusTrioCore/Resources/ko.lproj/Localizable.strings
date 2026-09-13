@@ -30,12 +30,12 @@
 "settings.battery.title" = "배터리 표시";
 "settings.battery.showPercentage" = "배터리 잔량 표시";
 "settings.battery.showChargingIndicator" = "충전 또는 전원 연결 시 번개 표시";
-"settings.battery.chargingDescription" = "활성화하면 충전 중이거나 전원에 연결되었을 때 잔량이 흰색 번개로 바뀝니다. 비활성화하면 잔량을 계속 표시합니다.";
+"settings.battery.chargingDescription" = "활성화하면 충전 중이거나 전원에 연결되었을 때 잔량이 번개로 바뀝니다. 비활성화하면 잔량을 계속 표시합니다.";
 "settings.battery.symbolScale" = "잔량/번개 크기";
 "settings.battery.symbolScaleAccessibility" = "배터리 잔량 및 번개 크기";
 "settings.battery.symbolScaleDescription" = "잔량과 번개는 같은 크기를 사용합니다.";
 "settings.battery.statusColors" = "배터리 상태에 따라 원호 색상 변경";
-"settings.battery.statusColorsDescription" = "배터리 부족은 빨간색, 저전력 모드는 노란색, 충전 중 또는 전원 연결은 초록색으로 표시합니다. 끄면 원호는 일반 전경색을 사용하고 잔량과 번개는 흰색으로 유지됩니다.";
+"settings.battery.statusColorsDescription" = "배터리 부족은 빨간색, 저전력 모드는 노란색, 충전 중 또는 전원 연결은 초록색으로 표시합니다. 끄면 원호는 일반 전경색을 사용합니다.";
 "settings.battery.criticalThreshold" = "배터리 부족 임계값";
 "settings.battery.criticalThresholdDescription" = "이 값 미만은 배터리 부족으로 간주하여 빨간색으로 표시합니다.";
 "settings.updates.title" = "업데이트";

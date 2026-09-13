@@ -189,7 +189,7 @@ enum StatusIconRenderer {
         defer { context.restoreGState() }
 
         if showsChargingBolt {
-            context.setFillColor(CGColor(gray: 1, alpha: 1))
+            context.setFillColor(foreground)
             context.addPath(StatusIconGeometry.batteryChargingBolt(
                 scale: batteryChargingBoltScale(textScale: options.textScale)
             ))
@@ -197,7 +197,7 @@ enum StatusIconRenderer {
         } else if options.showsPercentage {
             drawBatteryPercentage(
                 battery.percentage,
-                color: CGColor(gray: 1, alpha: 1),
+                color: foreground,
                 fontSize: batteryValueFontSize(scale: options.textScale),
                 in: context
             )
@@ -215,10 +215,25 @@ enum StatusIconRenderer {
         case .critical:
             criticalColor
         case .charging:
-            CGColor(red: 52.0 / 255.0, green: 199.0 / 255.0, blue: 89.0 / 255.0, alpha: 1)
+            if usesDarkStatusPalette(foreground: foreground) {
+                CGColor(red: 31.0 / 255.0, green: 143.0 / 255.0, blue: 61.0 / 255.0, alpha: 1)
+            } else {
+                CGColor(red: 52.0 / 255.0, green: 199.0 / 255.0, blue: 89.0 / 255.0, alpha: 1)
+            }
         case .lowPower:
-            CGColor(red: 242.0 / 255.0, green: 185.0 / 255.0, blue: 0, alpha: 1)
+            if usesDarkStatusPalette(foreground: foreground) {
+                CGColor(red: 201.0 / 255.0, green: 151.0 / 255.0, blue: 0, alpha: 1)
+            } else {
+                CGColor(red: 242.0 / 255.0, green: 185.0 / 255.0, blue: 0, alpha: 1)
+            }
         }
+    }
+
+    private static func usesDarkStatusPalette(foreground: CGColor) -> Bool {
+        guard let color = NSColor(cgColor: foreground)?.usingColorSpace(.deviceRGB) else {
+            return false
+        }
+        return color.brightnessComponent < 0.5
     }
 
     private static func drawBatteryPercentage(
