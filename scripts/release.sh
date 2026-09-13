@@ -197,7 +197,11 @@ if [[ -n "$SIGN_OUTPUT" ]]; then
     fi
 fi
 
-shasum -a 256 "$DMG_PATH" > "$DMG_PATH.sha256"
+DMG_FILENAME="$(basename "$DMG_PATH")"
+(
+    cd "$OUTPUT_DIR"
+    shasum -a 256 "$DMG_FILENAME" > "$DMG_FILENAME.sha256"
+)
 
 DMG_URL="https://github.com/$RELEASE_REPO/releases/download/$TAG/$(basename "$DMG_PATH")"
 
