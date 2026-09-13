@@ -28,11 +28,7 @@ enum LanguagePreference: Hashable, Identifiable, Sendable {
 final class Localization: ObservableObject {
     static let defaultsKey = "appLanguage"
 
-    @Published var preference: LanguagePreference {
-        didSet {
-            applyPreference()
-        }
-    }
+    private(set) var preference: LanguagePreference
     @Published private(set) var resolvedLanguage: AppLanguage
 
     private let defaults: UserDefaults
@@ -77,7 +73,23 @@ final class Localization: ObservableObject {
     }
 
     func setPreference(_ newPreference: LanguagePreference) {
+        guard newPreference != preference else { return }
         preference = newPreference
+
+        switch newPreference {
+        case .system:
+            defaults.removeObject(forKey: Self.defaultsKey)
+        case .language(let language):
+            defaults.set(language.rawValue, forKey: Self.defaultsKey)
+        }
+
+        resolvedLanguage = newPreference.resolvedLanguage(
+            preferredLanguages: preferredLanguages
+        )
+        // The Picker writes during its own update transaction. A follow-up
+        // notification after all language state has changed makes SwiftUI
+        // refresh the rest of the visible pane immediately.
+        objectWillChange.send()
     }
 
     func string(_ key: LocalizationKey) -> String {
@@ -100,19 +112,6 @@ final class Localization: ObservableObject {
             format: string(key),
             locale: resolvedLanguage.locale,
             arguments: arguments
-        )
-    }
-
-    private func applyPreference() {
-        switch preference {
-        case .system:
-            defaults.removeObject(forKey: Self.defaultsKey)
-        case .language(let language):
-            defaults.set(language.rawValue, forKey: Self.defaultsKey)
-        }
-
-        resolvedLanguage = preference.resolvedLanguage(
-            preferredLanguages: preferredLanguages
         )
     }
 

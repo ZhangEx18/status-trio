@@ -1,8 +1,25 @@
+import Combine
 import XCTest
 @testable import StatusTrioCore
 
 @MainActor
 final class LocalizationTests: XCTestCase {
+    func testLanguageChangeRefreshesAfterResolvedLanguageIsUpdated() {
+        let suite = makeSuite()
+        defer { clear(suite) }
+
+        let localization = Localization(defaults: suite.defaults, preferredLanguages: ["en"])
+        var observedLanguages: [AppLanguage] = []
+        let cancellable = localization.objectWillChange.sink {
+            observedLanguages.append(localization.resolvedLanguage)
+        }
+        defer { cancellable.cancel() }
+
+        localization.setPreference(.language(.german))
+
+        XCTAssertEqual(observedLanguages.last, .german)
+    }
+
     func testManualLanguagePersistsAndResolves() {
         let suite = makeSuite()
         defer { clear(suite) }

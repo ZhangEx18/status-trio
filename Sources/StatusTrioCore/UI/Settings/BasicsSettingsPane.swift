@@ -21,7 +21,10 @@ struct BasicsSettingsPane: View {
             ) {
                 Picker(
                     localization.string(.settingsLanguage),
-                    selection: $localization.preference
+                    selection: Binding(
+                        get: { localization.preference },
+                        set: localization.setPreference
+                    )
                 ) {
                     Text(localization.string(.settingsLanguageFollowSystem))
                         .tag(LanguagePreference.system)
