@@ -21,7 +21,7 @@
 "settings.menuBar.title" = "選單列圖示";
 "settings.about.version" = "版本 %@";
 "settings.about.description" = "將 Wi-Fi、電池和音量整合為一個簡潔選單列狀態圖示的原生 macOS 應用程式。靈感源自 iPhone Duo 的組合狀態列圖示，並在 Mac 上以音量取代行動網路。";
-"settings.about.project" = "專案";
+"settings.about.project" = "專案首頁";
 "settings.about.repository" = "GitHub 儲存庫";
 "settings.about.author" = "作者";
 "settings.about.authorRole" = "作者與維護者";

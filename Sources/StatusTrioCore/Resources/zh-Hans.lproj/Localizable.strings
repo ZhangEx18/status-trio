@@ -21,7 +21,7 @@
 "settings.menuBar.title" = "菜单栏图标";
 "settings.about.version" = "版本 %@";
 "settings.about.description" = "将 Wi-Fi、电池和音量整合为一个简洁菜单栏状态图标的原生 macOS 应用。灵感源自 iPhone Duo 的组合状态栏图标，并在 Mac 上以音量替代蜂窝网络。";
-"settings.about.project" = "项目";
+"settings.about.project" = "项目主页";
 "settings.about.repository" = "GitHub 仓库";
 "settings.about.author" = "作者";
 "settings.about.authorRole" = "作者与维护者";

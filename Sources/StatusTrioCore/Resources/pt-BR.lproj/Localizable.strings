@@ -21,7 +21,7 @@
 "settings.menuBar.title" = "Ícone da barra de menus";
 "settings.about.version" = "Versão %@";
 "settings.about.description" = "Um app nativo do macOS que reúne Wi-Fi, bateria e volume em um ícone compacto na barra de menus. Inspirado no ícone combinado da barra de status do iPhone Duo, usa o volume em vez dos dados celulares no Mac.";
-"settings.about.project" = "Projeto";
+"settings.about.project" = "Página do projeto";
 "settings.about.repository" = "Repositório no GitHub";
 "settings.about.author" = "Autor";
 "settings.about.authorRole" = "Criador e mantenedor";

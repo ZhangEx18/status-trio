@@ -21,7 +21,7 @@
 "settings.menuBar.title" = "메뉴 막대 아이콘";
 "settings.about.version" = "버전 %@";
 "settings.about.description" = "Wi-Fi, 배터리, 음량을 하나의 간결한 메뉴 막대 아이콘으로 결합한 네이티브 macOS 앱입니다. iPhone Duo의 결합 상태 막대 아이콘에서 영감을 받아 Mac에서는 셀룰러 데이터 대신 음량을 표시합니다.";
-"settings.about.project" = "프로젝트";
+"settings.about.project" = "프로젝트 홈페이지";
 "settings.about.repository" = "GitHub 저장소";
 "settings.about.author" = "작성자";
 "settings.about.authorRole" = "제작자 및 유지관리자";
