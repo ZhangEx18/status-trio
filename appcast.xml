@@ -5,5 +5,17 @@
     <link>https://github.com/lingyired/status-trio</link>
     <description>Most recent changes for Status Trio.</description>
     <language>en</language>
+    <item>
+      <title>Version 1.0.0 (Build 1)</title>
+      <pubDate>Sun, 13 Sep 2026 11:23:33 +0000</pubDate>
+      <sparkle:version>1</sparkle:version>
+      <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[<ul><li>fix: handle case-sensitive lproj names</li><li>ci: diagnose SwiftPM resource layout</li><li>fix: make localization bundle lookup CI-stable</li><li>Merge branch &#39;codex/status-icon-split-arc&#39;</li><li>feat: split battery arc around indicators</li><li>test: support weak references on Swift 6.1</li><li>fix: avoid isolated deinit for Swift 6.1</li><li>fix: support Swift 6.1 isolated deinit</li><li>build: add macOS GitHub release pipeline</li><li>docs: refresh README and About metadata</li><li>feat: add launch at login</li><li>Merge branch &#39;main&#39; into codex/settings-redesign</li><li>feat: redesign settings window</li><li>docs: plan Ad-hoc GitHub release pipeline</li><li>feat: add Sparkle auto-update support</li><li>chore: add project agent skills</li><li>Merge branch &#39;main&#39; into codex/multilingual-support</li><li>fix: bundle SwiftPM localization resources</li><li>docs: record automated verification</li><li>fix: use Wi-Fi strength in accessibility summary</li></ul>]]></description>
+      <enclosure url="https://github.com/lingyired/status-trio/releases/download/v1.0.0/StatusTrio-1.0.0.dmg"
+                 type="application/octet-stream"
+                 sparkle:edSignature="wFwcunzYqLg0k5g28+TFhiAflLrqhBj23IoGosmWMX/Z/8KHETz807zA1lIstwA2bkaUXvZw061mGqRuXaz3Ag=="
+                 length="2248466" />
+    </item>
   </channel>
 </rss>
