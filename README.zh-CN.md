@@ -11,7 +11,11 @@
 </p>
 
 <p align="center">
-  <img src="screenshots/popup.png" width="640" alt="Status Trio 状态弹层，展示 macOS 菜单栏中的电池、Wi-Fi 和音量">
+  <img src="screenshots/normal.png" width="494" alt="Status Trio 菜单栏图标，Wi-Fi、电池和音量一目了然">
+</p>
+
+<p align="center">
+  <img src="screenshots/popup.png" width="360" alt="Status Trio 状态弹层，展示 macOS 菜单栏中的电池、Wi-Fi 和音量">
 </p>
 
 Status Trio 将 Wi-Fi、电池和音量整合进一个紧凑、可配置的菜单栏图标。灵感源自 iPhone Duo 将 Wi-Fi、Battery 和 Cellular Data 合并展示的 status bar icon，并在 Mac 上以音量替代 Cellular Data。
@@ -149,4 +153,4 @@ Copyright 2026 lingyired。
 ## 作者
 
 由 [lingyired](https://github.com/lingyired) 创建并维护。<br>
-主页：[https://lingai.net/](https://lingai.net/)
+主页：[https://statustrio.lingai.net/](https://statustrio.lingai.net/)

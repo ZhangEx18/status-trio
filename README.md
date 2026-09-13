@@ -11,7 +11,11 @@
 </p>
 
 <p align="center">
-  <img src="screenshots/popup.png" width="640" alt="Status Trio popover showing battery, Wi-Fi, and volume controls in the macOS menu bar">
+  <img src="screenshots/normal.png" width="494" alt="Status Trio menu bar icon showing Wi-Fi, battery, and volume at a glance">
+</p>
+
+<p align="center">
+  <img src="screenshots/popup.png" width="360" alt="Status Trio popover showing battery, Wi-Fi, and volume controls in the macOS menu bar">
 </p>
 
 Status Trio combines Wi-Fi, battery, and volume into one compact, configurable menu bar icon. It is inspired by the iPhone Duo's combined status bar icon for Wi-Fi, Battery, and Cellular Data, adapted for Mac with Volume instead of Cellular Data.
@@ -149,4 +153,4 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) and [NOTI
 ## Author
 
 Created and maintained by [lingyired](https://github.com/lingyired).<br>
-Website: [https://lingai.net/](https://lingai.net/)
+Website: [https://statustrio.lingai.net/](https://statustrio.lingai.net/)
