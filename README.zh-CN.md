@@ -55,6 +55,27 @@ bash scripts/build-app.sh release no-open
 
 ad-hoc 签名的应用包适合本地个人使用。如果应用包携带 quarantine 元数据后转移，可能会被 Gatekeeper 拦截。
 
+## 安装 GitHub Release
+
+从 [GitHub Releases](https://github.com/lingyired/status-trio/releases) 下载最新的 `StatusTrio-*.dmg`，打开后将 `Status Trio.app` 拖入 `/Applications`。
+
+当前公开版本使用 ad-hoc 签名，尚未经过 Apple notarization。macOS 首次启动时可能提示：
+
+> Apple 无法验证“Status Trio”是否包含可能危害 Mac 安全或泄漏隐私的恶意软件。
+
+这是 Gatekeeper 因缺少 Developer ID 签名和 Apple 公证而显示的警告，并不代表应用一定包含恶意软件。只有在 DMG 来自官方 GitHub Releases 页面，并且发布的 SHA-256 校验值匹配时，才应绕过此警告。
+
+将应用复制到 `/Applications` 后，移除 quarantine 属性并启动：
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Status Trio.app"
+open "/Applications/Status Trio.app"
+```
+
+也可以先尝试打开一次应用，然后前往 **系统设置 → 隐私与安全性**，选择 **仍要打开**。
+
+不要全局关闭 Gatekeeper。后续 Sparkle 更新会通过应用的 EdDSA 签名密钥进行验证；通常只有第一次手动安装时需要执行 `xattr` 命令。
+
 ## 使用方法
 
 - **左键点击**菜单栏图标，打开状态弹层。

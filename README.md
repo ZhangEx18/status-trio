@@ -55,6 +55,27 @@ bash scripts/build-app.sh release no-open
 
 The ad-hoc-signed bundle is intended for local personal use. Gatekeeper may reject it if the bundle is transferred with quarantine metadata.
 
+## Install a GitHub Release
+
+Download the latest `StatusTrio-*.dmg` from the [GitHub Releases page](https://github.com/lingyired/status-trio/releases), open it, and copy `Status Trio.app` into `/Applications`.
+
+The current public build is ad-hoc signed but is not notarized by Apple. macOS may show this warning on first launch:
+
+> Apple cannot verify “Status Trio” is free of malware that may harm your Mac or compromise your privacy.
+
+This is a Gatekeeper warning caused by the missing Developer ID signature and Apple notarization. It does not by itself mean the app contains malware. Only bypass the warning when the DMG was downloaded from the official GitHub Releases page and its published SHA-256 checksum matches.
+
+After copying the app into `/Applications`, remove the quarantine attribute and open it:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Status Trio.app"
+open "/Applications/Status Trio.app"
+```
+
+Alternatively, try to open the app once, then go to **System Settings → Privacy & Security** and choose **Open Anyway**.
+
+Do not disable Gatekeeper globally. Subsequent Sparkle updates are authenticated with the app's EdDSA signing key; the `xattr` command is normally needed only for the first manual installation.
+
 ## Usage
 
 - **Left-click** the menu bar icon to open the status popover.
