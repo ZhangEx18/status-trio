@@ -23,7 +23,9 @@ struct BasicsSettingsPane: View {
                     localization.string(.settingsLanguage),
                     selection: Binding(
                         get: { localization.preference },
-                        set: localization.setPreference
+                        set: { newPreference in
+                            localization.setPreference(newPreference)
+                        }
                     )
                 ) {
                     Text(localization.string(.settingsLanguageFollowSystem))
