@@ -17,6 +17,10 @@ struct BasicsSettingsPane: View {
 
     var body: some View {
         PreferencesPane {
+            launchAtLoginSection
+
+            Divider()
+
             PreferenceRow(
                 label: .settingsLanguage,
                 description: .settingsLanguageDescription,
@@ -50,10 +54,6 @@ struct BasicsSettingsPane: View {
             Divider()
 
             popupOrderSection
-
-            Divider()
-
-            launchAtLoginSection
         }
     }
 
