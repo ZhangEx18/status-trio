@@ -12,6 +12,7 @@ final class SystemStatusStore: ObservableObject {
 
     private let batteryMonitor: any BatteryMonitoring
     private let wifiMonitor: any WiFiMonitoring
+    private let connectionMonitor: (any NetworkConnectionMonitoring)?
     private let volumeMonitor: any VolumeMonitoring
     private let volumeController: (any VolumeControlling)?
     private let refreshInterval: Duration
@@ -29,6 +30,7 @@ final class SystemStatusStore: ObservableObject {
     init(
         batteryMonitor: any BatteryMonitoring,
         wifiMonitor: any WiFiMonitoring,
+        connectionMonitor: (any NetworkConnectionMonitoring)? = nil,
         volumeMonitor: any VolumeMonitoring,
         refreshInterval: Duration = .seconds(5),
         sleep: @escaping @Sendable (Duration) async throws -> Void = {
@@ -42,6 +44,7 @@ final class SystemStatusStore: ObservableObject {
     ) {
         self.batteryMonitor = batteryMonitor
         self.wifiMonitor = wifiMonitor
+        self.connectionMonitor = connectionMonitor
         self.volumeMonitor = volumeMonitor
         self.volumeController = volumeMonitor as? any VolumeControlling
         self.refreshInterval = refreshInterval
@@ -80,12 +83,14 @@ final class SystemStatusStore: ObservableObject {
 
         batteryMonitor.start()
         wifiMonitor.start()
+        connectionMonitor?.start()
         volumeMonitor.start()
 
         let batteryUpdates = batteryMonitor.updates
         let wifiUpdates = wifiMonitor.updates
+        let connectionUpdates = connectionMonitor?.updates
         let volumeUpdates = volumeMonitor.updates
-        monitorTasks = [
+        var tasks = [
             Task { [weak self] in
                 for await value in batteryUpdates {
                     guard let self else { return }
@@ -105,6 +110,15 @@ final class SystemStatusStore: ObservableObject {
                 }
             }
         ]
+        if let connectionUpdates {
+            tasks.append(Task { [weak self] in
+                for await value in connectionUpdates {
+                    guard let self else { return }
+                    self.applyConnection(value)
+                }
+            })
+        }
+        monitorTasks = tasks
 
         let refreshInterval = refreshInterval
         let sleep = sleep
@@ -133,6 +147,7 @@ final class SystemStatusStore: ObservableObject {
 
         batteryMonitor.stop()
         wifiMonitor.stop()
+        connectionMonitor?.stop()
         volumeMonitor.stop()
         monitorTasks.forEach { $0.cancel() }
         monitorTasks.removeAll()
@@ -196,6 +211,7 @@ final class SystemStatusStore: ObservableObject {
     private func recoverAll() {
         batteryMonitor.recover()
         wifiMonitor.recover()
+        connectionMonitor?.recover()
         volumeMonitor.recover()
     }
 
@@ -205,6 +221,10 @@ final class SystemStatusStore: ObservableObject {
 
     private func applyWiFi(_ value: WiFiStatus) {
         publish(snapshot.replacingWiFi(value))
+    }
+
+    private func applyConnection(_ value: NetworkConnection) {
+        publish(snapshot.replacingConnection(value))
     }
 
     private func applyVolume(_ value: VolumeStatus) {
@@ -256,14 +276,18 @@ private extension VolumeStatus {
 
 private extension StatusSnapshot {
     func replacingBattery(_ value: BatteryStatus) -> StatusSnapshot {
-        StatusSnapshot(battery: value, wifi: wifi, volume: volume)
+        StatusSnapshot(battery: value, wifi: wifi, connection: connection, volume: volume)
     }
 
     func replacingWiFi(_ value: WiFiStatus) -> StatusSnapshot {
-        StatusSnapshot(battery: battery, wifi: value, volume: volume)
+        StatusSnapshot(battery: battery, wifi: value, connection: connection, volume: volume)
+    }
+
+    func replacingConnection(_ value: NetworkConnection) -> StatusSnapshot {
+        StatusSnapshot(battery: battery, wifi: wifi, connection: value, volume: volume)
     }
 
     func replacingVolume(_ value: VolumeStatus) -> StatusSnapshot {
-        StatusSnapshot(battery: battery, wifi: wifi, volume: value)
+        StatusSnapshot(battery: battery, wifi: wifi, connection: connection, volume: value)
     }
 }
