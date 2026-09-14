@@ -30,7 +30,7 @@
 GitHub Release 正文必须包含英文和中文，英文在上、中文在下，并使用版本号标题：
 
 ```markdown
-# Version 1.2.0
+# Version 1.2.0 （English + 中文， 中文在下方）
 
 ## English
 

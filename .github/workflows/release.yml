@@ -228,7 +228,7 @@ jobs:
           fi
 
           {
-            printf '# Version %s\n\n' "${VERSION}"
+            printf '# Version %s （English + 中文， 中文在下方）\n\n' "${VERSION}"
             printf '## English\n\n'
             cat "${NOTES_PATH}"
             printf '\n## 中文\n\n'
