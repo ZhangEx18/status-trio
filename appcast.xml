@@ -6,6 +6,18 @@
     <description>Most recent changes for Status Trio.</description>
     <language>en</language>
     <item>
+      <title>Version 1.0.3 (Build 4)</title>
+      <pubDate>Mon, 14 Sep 2026 07:22:38 +0000</pubDate>
+      <sparkle:version>4</sparkle:version>
+      <sparkle:shortVersionString>1.0.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[<ul><li>Add configurable Wi-Fi status icons for connected and disconnected states.</li><li>Show a dedicated Ethernet icon when a wired connection is active.</li><li>Expand the menu bar icon size range.</li><li>Add output device list customization, including visibility controls, expand-all mode, and persistent drag reordering.</li><li>Improve popup icon alignment, volume controls, and the automatic updates toggle.</li></ul>]]></description>
+      <enclosure url="https://github.com/lingyired/status-trio/releases/download/v1.0.3/StatusTrio-1.0.3.dmg"
+                 type="application/octet-stream"
+                 sparkle:edSignature="NrXoTnX8KkmgkY4wARp4APjYvQXflJKe5i2b8SHDaY7I80RFRWt21dscdjT5WSoJZwlqd9gVzFrVqTWEb4cjDg=="
+                 length="2311597" />
+    </item>
+    <item>
       <title>Version 1.0.2 (Build 3)</title>
       <pubDate>Sun, 13 Sep 2026 13:42:57 +0000</pubDate>
       <sparkle:version>3</sparkle:version>
