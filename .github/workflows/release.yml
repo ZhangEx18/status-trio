@@ -208,6 +208,7 @@ jobs:
         run: |
           set -euo pipefail
           NOTES_PATH="${RUNNER_TEMP}/release-notes.md"
+          APPCAST_NOTES_PATH="${RUNNER_TEMP}/appcast-release-notes.md"
           RELEASE_BODY_PATH="${RUNNER_TEMP}/github-release-notes.md"
 
           if [[ -z "${RELEASE_NOTES_ZH_INPUT//[[:space:]]/}" ]]; then
@@ -233,10 +234,26 @@ jobs:
             cat "${NOTES_PATH}"
             printf '\n## 中文\n\n'
             printf '%s\n' "${RELEASE_NOTES_ZH_INPUT}"
-          } > "${RELEASE_BODY_PATH}"
+          } > "${APPCAST_NOTES_PATH}"
+
+          cp "${APPCAST_NOTES_PATH}" "${RELEASE_BODY_PATH}"
+          {
+            printf '\n## First launch / 首次启动\n\n'
+            printf 'If macOS blocks the first launch, run:\n\n'
+            printf '```bash\n'
+            printf 'xattr -dr com.apple.quarantine "/Applications/Status Trio.app"\n'
+            printf 'open "/Applications/Status Trio.app"\n'
+            printf '```\n\n'
+            printf '如果 macOS 阻止首次启动，请运行：\n\n'
+            printf '```bash\n'
+            printf 'xattr -dr com.apple.quarantine "/Applications/Status Trio.app"\n'
+            printf 'open "/Applications/Status Trio.app"\n'
+            printf '```\n'
+          } >> "${RELEASE_BODY_PATH}"
 
           {
             echo "RELEASE_NOTES_FILE=${NOTES_PATH}"
+            echo "APPCAST_RELEASE_NOTES_FILE=${APPCAST_NOTES_PATH}"
             echo "RELEASE_BODY_FILE=${RELEASE_BODY_PATH}"
           } >> "${GITHUB_ENV}"
 

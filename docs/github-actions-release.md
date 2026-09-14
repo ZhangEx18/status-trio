@@ -45,7 +45,16 @@ GitHub Release 正文必须包含英文和中文，英文在上、中文在下�
 
 工作流会根据 `version` 自动生成标题，并把 `release_notes` 和 `release_notes_zh` 合并为上述格式。`publish=true` 时必须提供 `release_notes_zh`；未提供 `release_notes` 时，英文部分会根据上一个 tag 到当前提交自动生成。
 
-Sparkle `appcast.xml` 使用同一份双语说明：条目标题包含版本号和 `（English + 中文， 中文在下方）`，描述按 English、中文两个区块显示。
+Sparkle `appcast.xml` 使用双语说明：条目标题包含版本号和 `（English + 中文， 中文在下方）`，描述按 English、中文两个区块显示。
+
+GitHub Release 正文会在双语说明后自动追加首次启动提示：
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Status Trio.app"
+open "/Applications/Status Trio.app"
+```
+
+这些首次启动命令只写入 GitHub Release，不写入 Sparkle appcast。
 
 ## 第一次配置
 

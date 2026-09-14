@@ -139,6 +139,15 @@ if [[ ! -f "$RELEASE_BODY_FILE" ]]; then
     exit 1
 fi
 
+if [[ -z "${APPCAST_RELEASE_NOTES_FILE:-}" ]]; then
+    APPCAST_RELEASE_NOTES_FILE="$RELEASE_BODY_FILE"
+fi
+
+if [[ ! -f "$APPCAST_RELEASE_NOTES_FILE" ]]; then
+    echo "Error: appcast release notes file does not exist: $APPCAST_RELEASE_NOTES_FILE" >&2
+    exit 1
+fi
+
 mkdir -p "$OUTPUT_DIR"
 
 echo "Building $APP_NAME $VERSION ($BUILD) for $RELEASE_REPO..."
@@ -258,7 +267,7 @@ ruby "$ROOT/scripts/update-appcast.rb" \
     "$DMG_URL" \
     "$ED_SIGNATURE" \
     "$DMG_LENGTH" \
-    "$RELEASE_BODY_FILE" \
+    "$APPCAST_RELEASE_NOTES_FILE" \
     "$APPCAST_PATH"
 
 xmllint --noout "$APPCAST_PATH"
