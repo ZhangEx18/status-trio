@@ -13,7 +13,7 @@
 "settings.launchAtLogin.failure" = "Не удалось обновить объект входа. Управляйте им в «Системные настройки › Основные › Объекты входа».";
 "settings.iconSize" = "Размер значка";
 "settings.iconSize.accessibilityValue" = "%d пунктов";
-"settings.iconSize.description" = "Настраивает размер отрисовки значка в строке меню от 20 до 32 pt.";
+"settings.iconSize.description" = "Настраивает размер отрисовки значка в строке меню от 16 до 36 pt.";
 "settings.tab.basics" = "Основные";
 "settings.tab.menuBar" = "Строка меню";
 "settings.tab.audio" = "Аудио";

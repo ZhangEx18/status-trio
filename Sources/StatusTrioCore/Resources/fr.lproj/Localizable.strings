@@ -13,7 +13,7 @@
 "settings.launchAtLogin.failure" = "Impossible de mettre à jour l’élément d’ouverture. Gérez-le dans Réglages Système › Général › Ouverture.";
 "settings.iconSize" = "Taille de l’icône";
 "settings.iconSize.accessibilityValue" = "%d points";
-"settings.iconSize.description" = "Ajuste la taille de rendu de l’icône dans la barre des menus de 20 à 32 pt.";
+"settings.iconSize.description" = "Ajuste la taille de rendu de l’icône dans la barre des menus de 16 à 36 pt.";
 "settings.tab.basics" = "Général";
 "settings.tab.menuBar" = "Barre des menus";
 "settings.tab.audio" = "Audio";

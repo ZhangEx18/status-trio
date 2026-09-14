@@ -13,7 +13,7 @@
 "settings.launchAtLogin.failure" = "無法更新登入項目，可在「系統設定 › 一般 › 登入項目」中手動管理。";
 "settings.iconSize" = "圖示顯示尺寸";
 "settings.iconSize.accessibilityValue" = "%d 點";
-"settings.iconSize.description" = "調整選單列圖示的繪製尺寸，可選 20–32 pt。";
+"settings.iconSize.description" = "調整選單列圖示的繪製尺寸，可選 16–36 pt。";
 "settings.tab.basics" = "基礎";
 "settings.tab.menuBar" = "選單列";
 "settings.tab.audio" = "音訊";

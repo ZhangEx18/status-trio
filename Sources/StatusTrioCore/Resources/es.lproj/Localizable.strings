@@ -13,7 +13,7 @@
 "settings.launchAtLogin.failure" = "No se pudo actualizar el ítem de inicio. Puedes gestionarlo en Ajustes del Sistema › General › Ítems de inicio de sesión.";
 "settings.iconSize" = "Tamaño del icono";
 "settings.iconSize.accessibilityValue" = "%d puntos";
-"settings.iconSize.description" = "Ajusta el tamaño de representación del icono de la barra de menús entre 20 y 32 pt.";
+"settings.iconSize.description" = "Ajusta el tamaño de representación del icono de la barra de menús entre 16 y 36 pt.";
 "settings.tab.basics" = "Básico";
 "settings.tab.menuBar" = "Barra de menús";
 "settings.tab.audio" = "Audio";

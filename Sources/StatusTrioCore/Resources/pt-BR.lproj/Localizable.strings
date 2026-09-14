@@ -13,7 +13,7 @@
 "settings.launchAtLogin.failure" = "Não foi possível atualizar o item de início. Gerencie-o em Ajustes do Sistema › Geral › Itens de Início.";
 "settings.iconSize" = "Tamanho do ícone";
 "settings.iconSize.accessibilityValue" = "%d pontos";
-"settings.iconSize.description" = "Ajusta o tamanho de renderização do ícone na barra de menus entre 20 e 32 pt.";
+"settings.iconSize.description" = "Ajusta o tamanho de renderização do ícone na barra de menus entre 16 e 36 pt.";
 "settings.tab.basics" = "Básico";
 "settings.tab.menuBar" = "Barra de menus";
 "settings.tab.audio" = "Áudio";

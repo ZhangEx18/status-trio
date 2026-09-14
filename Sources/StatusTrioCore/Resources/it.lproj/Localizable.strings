@@ -13,7 +13,7 @@
 "settings.launchAtLogin.failure" = "Impossibile aggiornare l’elemento login. Puoi gestirlo in Impostazioni di Sistema › Generali › Elementi login.";
 "settings.iconSize" = "Dimensione icona";
 "settings.iconSize.accessibilityValue" = "%d punti";
-"settings.iconSize.description" = "Regola la dimensione di rendering dell’icona nella barra dei menu da 20 a 32 pt.";
+"settings.iconSize.description" = "Regola la dimensione di rendering dell’icona nella barra dei menu da 16 a 36 pt.";
 "settings.tab.basics" = "Generali";
 "settings.tab.menuBar" = "Barra dei menu";
 "settings.tab.audio" = "Audio";

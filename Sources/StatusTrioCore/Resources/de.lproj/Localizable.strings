@@ -13,7 +13,7 @@
 "settings.launchAtLogin.failure" = "Das Anmeldeobjekt konnte nicht aktualisiert werden. Verwalte es in Systemeinstellungen › Allgemein › Anmeldeobjekte.";
 "settings.iconSize" = "Symbolgröße";
 "settings.iconSize.accessibilityValue" = "%d Punkte";
-"settings.iconSize.description" = "Passt die Darstellungsgröße des Menüleistensymbols auf 20–32 pt an.";
+"settings.iconSize.description" = "Passt die Darstellungsgröße des Menüleistensymbols auf 16–36 pt an.";
 "settings.tab.basics" = "Allgemein";
 "settings.tab.menuBar" = "Menüleiste";
 "settings.tab.audio" = "Audio";

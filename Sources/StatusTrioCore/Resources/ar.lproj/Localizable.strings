@@ -8,7 +8,7 @@
 "settings.language.description" = "تُطبَّق التغييرات فورًا.";
 "settings.iconSize" = "حجم الرمز";
 "settings.iconSize.accessibilityValue" = "%d نقطة";
-"settings.iconSize.description" = "يضبط حجم عرض رمز شريط القوائم بين 20 و32 نقطة.";
+"settings.iconSize.description" = "يضبط حجم عرض رمز شريط القوائم بين 16 و36 نقطة.";
 "settings.tab.basics" = "الأساسيات";
 "settings.tab.menuBar" = "شريط القوائم";
 "settings.tab.audio" = "الصوت";

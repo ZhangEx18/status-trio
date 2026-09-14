@@ -13,7 +13,7 @@
 "settings.launchAtLogin.failure" = "ログイン項目を更新できませんでした。「システム設定 › 一般 › ログイン項目」で管理できます。";
 "settings.iconSize" = "アイコンの表示サイズ";
 "settings.iconSize.accessibilityValue" = "%d ポイント";
-"settings.iconSize.description" = "メニューバーアイコンの描画サイズを 20〜32 pt で調整します。";
+"settings.iconSize.description" = "メニューバーアイコンの描画サイズを 16〜36 pt で調整します。";
 "settings.tab.basics" = "基本";
 "settings.tab.menuBar" = "メニューバー";
 "settings.tab.audio" = "オーディオ";

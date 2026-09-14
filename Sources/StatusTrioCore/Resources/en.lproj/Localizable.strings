@@ -13,7 +13,7 @@
 "settings.launchAtLogin.failure" = "Couldn’t update the login item. Manage it in System Settings › General › Login Items.";
 "settings.iconSize" = "Icon Size";
 "settings.iconSize.accessibilityValue" = "%d points";
-"settings.iconSize.description" = "Adjusts the menu bar icon render size from 20–32 pt.";
+"settings.iconSize.description" = "Adjusts the menu bar icon render size from 16–36 pt.";
 "settings.tab.basics" = "Basics";
 "settings.tab.menuBar" = "Menu Bar";
 "settings.tab.audio" = "Audio";
