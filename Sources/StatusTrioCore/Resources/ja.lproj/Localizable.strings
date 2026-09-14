@@ -70,6 +70,7 @@
 "common.parenthetical" = "%@（%@）";
 "common.labelValue" = "%@ %@";
 "wifi.title" = "Wi-Fi";
+"network.title" = "ネットワーク";
 "wifi.value.bars" = "%d 本";
 "wifi.value.notAssociated" = "未接続";
 "wifi.value.off" = "オフ";
@@ -112,3 +113,7 @@
 "settings.refreshInterval" = "ステータス更新間隔";
 "settings.refreshInterval.description" = "Status Trio が変更を確認する頻度です。短いほど CPU 使用率が高くなります。";
 "settings.refreshInterval.value" = "%d 秒";
+"settings.popup.order" = "ポップオーバーの順序";
+"settings.popup.order.description" = "項目をドラッグしてポップオーバーでの表示順を変更します。";
+"settings.popup.order.battery" = "バッテリー";
+"settings.popup.order.volume" = "音量";

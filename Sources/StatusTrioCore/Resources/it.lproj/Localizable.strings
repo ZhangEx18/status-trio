@@ -70,6 +70,7 @@
 "common.parenthetical" = "%@ (%@)";
 "common.labelValue" = "%@, %@";
 "wifi.title" = "Wi-Fi";
+"network.title" = "Rete";
 "wifi.value.bars" = "%d barre";
 "wifi.value.notAssociated" = "Non associato";
 "wifi.value.off" = "Spento";
@@ -112,3 +113,7 @@
 "settings.refreshInterval" = "Intervallo di aggiornamento";
 "settings.refreshInterval.description" = "Con quale frequenza Status Trio controlla le modifiche. Aggiornamenti più frequenti usano più CPU.";
 "settings.refreshInterval.value" = "%d secondi";
+"settings.popup.order" = "Ordine del pannello";
+"settings.popup.order.description" = "Trascina gli elementi per cambiarne l’ordine nel pannello.";
+"settings.popup.order.battery" = "Batteria";
+"settings.popup.order.volume" = "Volume";

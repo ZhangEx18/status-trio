@@ -16,6 +16,10 @@ enum LocalizationKey: String, CaseIterable, Hashable, Sendable {
     case settingsRefreshInterval = "settings.refreshInterval"
     case settingsRefreshIntervalDescription = "settings.refreshInterval.description"
     case settingsRefreshIntervalValue = "settings.refreshInterval.value"
+    case settingsPopupOrder = "settings.popup.order"
+    case settingsPopupOrderDescription = "settings.popup.order.description"
+    case settingsPopupOrderBattery = "settings.popup.order.battery"
+    case settingsPopupOrderVolume = "settings.popup.order.volume"
     case settingsLaunchAtLogin = "settings.launchAtLogin"
     case settingsLaunchAtLoginDescription = "settings.launchAtLogin.description"
     case settingsLaunchAtLoginRequiresApproval = "settings.launchAtLogin.requiresApproval"
@@ -79,6 +83,7 @@ enum LocalizationKey: String, CaseIterable, Hashable, Sendable {
     case ethernetAccessibilityConnected = "ethernet.accessibility.connected"
 
     case wifiTitle = "wifi.title"
+    case networkTitle = "network.title"
     case wifiValueBars = "wifi.value.bars"
     case wifiValueNotAssociated = "wifi.value.notAssociated"
     case wifiValueOff = "wifi.value.off"

@@ -49,6 +49,10 @@ struct BasicsSettingsPane: View {
 
             Divider()
 
+            popupOrderSection
+
+            Divider()
+
             launchAtLoginSection
         }
     }
@@ -83,6 +87,44 @@ struct BasicsSettingsPane: View {
                 .frame(width: 92, alignment: .trailing)
             }
         }
+    }
+
+    private var popupOrderSection: some View {
+        PreferenceRow(
+            label: .settingsPopupOrder,
+            description: .settingsPopupOrderDescription
+        ) {
+            List {
+                ForEach(store.popupSectionOrder) { section in
+                    HStack(spacing: 8) {
+                        Image(systemName: section.systemImage)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 18)
+
+                        Text(localization.string(section.titleKey))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Image(systemName: "line.3.horizontal")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .accessibilityHidden(true)
+                    }
+                    .padding(.vertical, 2)
+                }
+                .onMove { source, destination in
+                    store.movePopupSections(
+                        fromOffsets: source,
+                        toOffset: destination
+                    )
+                }
+            }
+            .listStyle(.inset)
+            .frame(height: popupOrderListHeight)
+        }
+    }
+
+    private var popupOrderListHeight: CGFloat {
+        min(max(CGFloat(store.popupSectionOrder.count) * 28 + 8, 44), 168)
     }
 
     private var launchAtLoginSection: some View {

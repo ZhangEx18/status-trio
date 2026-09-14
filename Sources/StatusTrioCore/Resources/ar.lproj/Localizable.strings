@@ -70,6 +70,7 @@
 "settings.launchAtLogin.openLoginItems" = "فتح عناصر تسجيل الدخول";
 "settings.launchAtLogin.failure" = "تعذّر تحديث عنصر تسجيل الدخول. يمكنك إدارته من إعدادات النظام › عام › عناصر تسجيل الدخول.";
 "wifi.title" = "Wi-Fi";
+"network.title" = "الشبكة";
 "wifi.value.bars" = "%d أشرطة";
 "wifi.value.notAssociated" = "غير مرتبط";
 "wifi.value.off" = "مغلق";
@@ -112,3 +113,7 @@
 "settings.refreshInterval" = "فترة تحديث الحالة";
 "settings.refreshInterval.description" = "عدد مرات تحقق Status Trio من التغييرات. تؤدي التحديثات الأكثر تكرارًا إلى استخدام CPU أكبر.";
 "settings.refreshInterval.value" = "%d ثوانٍ";
+"settings.popup.order" = "ترتيب النافذة المنبثقة";
+"settings.popup.order.description" = "اسحب العناصر لتغيير ترتيبها في النافذة المنبثقة.";
+"settings.popup.order.battery" = "البطارية";
+"settings.popup.order.volume" = "مستوى الصوت";

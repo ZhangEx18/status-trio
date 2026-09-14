@@ -70,6 +70,7 @@
 "common.parenthetical" = "%@ (%@)";
 "common.labelValue" = "%@, %@";
 "wifi.title" = "Wi-Fi";
+"network.title" = "Netzwerk";
 "wifi.value.bars" = "%d Balken";
 "wifi.value.notAssociated" = "Nicht verbunden";
 "wifi.value.off" = "Aus";
@@ -112,3 +113,7 @@
 "settings.refreshInterval" = "Aktualisierungsintervall";
 "settings.refreshInterval.description" = "Wie oft Status Trio auf Änderungen prüft. Häufigere Aktualisierungen erhöhen die CPU-Auslastung.";
 "settings.refreshInterval.value" = "%d Sekunden";
+"settings.popup.order" = "Reihenfolge im Popover";
+"settings.popup.order.description" = "Ziehe Elemente, um ihre Reihenfolge im Popover zu ändern.";
+"settings.popup.order.battery" = "Batterie";
+"settings.popup.order.volume" = "Lautstärke";

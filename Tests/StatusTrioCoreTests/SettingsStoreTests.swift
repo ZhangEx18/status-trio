@@ -297,6 +297,43 @@ final class SettingsStoreTests: XCTestCase {
         )
     }
 
+    func testPopupSectionOrderDefaultsToBatteryNetworkVolume() {
+        let store = SettingsStore(defaults: makeSuite().defaults)
+
+        XCTAssertEqual(store.popupSectionOrder, [.battery, .network, .volume])
+    }
+
+    func testMovingPopupSectionsPersistsOrder() {
+        let suite = makeSuite()
+        defer { clear(suite) }
+
+        let store = SettingsStore(defaults: suite.defaults)
+        store.movePopupSections(
+            fromOffsets: IndexSet(integer: 2),
+            toOffset: 0
+        )
+
+        XCTAssertEqual(store.popupSectionOrder, [.volume, .battery, .network])
+        XCTAssertEqual(
+            SettingsStore(defaults: suite.defaults).popupSectionOrder,
+            [.volume, .battery, .network]
+        )
+    }
+
+    func testStoredPopupSectionOrderIsSanitizedAndCompleted() {
+        let suite = makeSuite()
+        defer { clear(suite) }
+
+        suite.defaults.set(
+            ["volume", "unknown", "volume", "network"],
+            forKey: SettingsStore.popupSectionOrderDefaultsKey
+        )
+
+        let store = SettingsStore(defaults: suite.defaults)
+
+        XCTAssertEqual(store.popupSectionOrder, [.volume, .network, .battery])
+    }
+
     func testEveryConfigurableSizeRendersAtThatSize() throws {
         for value in stride(
             from: SettingsStore.iconSizeRange.lowerBound,

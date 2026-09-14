@@ -70,6 +70,7 @@
 "common.parenthetical" = "%@(%@)";
 "common.labelValue" = "%@ %@";
 "wifi.title" = "Wi-Fi";
+"network.title" = "네트워크";
 "wifi.value.bars" = "%d칸";
 "wifi.value.notAssociated" = "연결되지 않음";
 "wifi.value.off" = "꺼짐";
@@ -112,3 +113,7 @@
 "settings.refreshInterval" = "상태 새로 고침 간격";
 "settings.refreshInterval.description" = "Status Trio가 변경 사항을 확인하는 빈도입니다. 더 자주 확인하면 CPU 사용량이 늘어납니다.";
 "settings.refreshInterval.value" = "%d초";
+"settings.popup.order" = "팝오버 순서";
+"settings.popup.order.description" = "항목을 드래그하여 팝오버에서 표시되는 순서를 변경합니다.";
+"settings.popup.order.battery" = "배터리";
+"settings.popup.order.volume" = "볼륨";

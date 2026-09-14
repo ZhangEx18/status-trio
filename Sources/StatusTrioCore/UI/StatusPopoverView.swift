@@ -256,27 +256,13 @@ struct StatusPopoverView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            BatteryStatusView(
-                battery: store.popupSnapshot.battery,
-                onOpenBatterySettings: openBatterySettings
-            )
-            Divider()
-            WiFiStatusView(
-                wifi: store.popupSnapshot.wifi,
-                onRequestNameAccess: requestWiFiNameAccess,
-                onOpenWiFiSettings: openWiFiSettings,
-                onOpenLocationSettings: openLocationSettings
-            )
-            Divider()
-            VolumeControlsView(
-                settings: settings,
-                volume: store.liveVolume,
-                isEnabled: store.isVolumeControlAvailable,
-                onVolumeChange: store.setVolume,
-                onToggleMute: store.toggleMute,
-                onSelectOutputDevice: store.selectOutputDevice,
-                onOpenSoundSettings: openSoundSettings
-            )
+            ForEach(settings.popupSectionOrder) { section in
+                popupSection(section)
+
+                if section != settings.popupSectionOrder.last {
+                    Divider()
+                }
+            }
 
             Divider()
 
@@ -293,5 +279,33 @@ struct StatusPopoverView: View {
         }
         .padding(14)
         .frame(width: 300)
+    }
+
+    @ViewBuilder
+    private func popupSection(_ section: PopupSection) -> some View {
+        switch section {
+        case .battery:
+            BatteryStatusView(
+                battery: store.popupSnapshot.battery,
+                onOpenBatterySettings: openBatterySettings
+            )
+        case .network:
+            WiFiStatusView(
+                wifi: store.popupSnapshot.wifi,
+                onRequestNameAccess: requestWiFiNameAccess,
+                onOpenWiFiSettings: openWiFiSettings,
+                onOpenLocationSettings: openLocationSettings
+            )
+        case .volume:
+            VolumeControlsView(
+                settings: settings,
+                volume: store.liveVolume,
+                isEnabled: store.isVolumeControlAvailable,
+                onVolumeChange: store.setVolume,
+                onToggleMute: store.toggleMute,
+                onSelectOutputDevice: store.selectOutputDevice,
+                onOpenSoundSettings: openSoundSettings
+            )
+        }
     }
 }

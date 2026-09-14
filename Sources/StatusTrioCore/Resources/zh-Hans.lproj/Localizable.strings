@@ -70,6 +70,7 @@
 "common.parenthetical" = "%@（%@）";
 "common.labelValue" = "%@ %@";
 "wifi.title" = "Wi-Fi";
+"network.title" = "网络";
 "wifi.value.bars" = "%d 格";
 "wifi.value.notAssociated" = "未关联";
 "wifi.value.off" = "关闭";
@@ -112,3 +113,7 @@
 "settings.refreshInterval" = "状态刷新间隔";
 "settings.refreshInterval.description" = "Status Trio 检查状态变化的频率。刷新越快，CPU 占用越高。";
 "settings.refreshInterval.value" = "%d 秒";
+"settings.popup.order" = "弹窗排序";
+"settings.popup.order.description" = "拖动项目以调整它们在弹窗中的顺序。";
+"settings.popup.order.battery" = "电池";
+"settings.popup.order.volume" = "音量";

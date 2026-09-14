@@ -70,6 +70,7 @@
 "common.parenthetical" = "%@ (%@)";
 "common.labelValue" = "%@, %@";
 "wifi.title" = "Wi-Fi";
+"network.title" = "Сеть";
 "wifi.value.bars" = "%d дел.";
 "wifi.value.notAssociated" = "Не подключено";
 "wifi.value.off" = "Выключено";
@@ -112,3 +113,7 @@
 "settings.refreshInterval" = "Интервал обновления";
 "settings.refreshInterval.description" = "Как часто Status Trio проверяет изменения. Более частое обновление увеличивает нагрузку на CPU.";
 "settings.refreshInterval.value" = "%d секунд";
+"settings.popup.order" = "Порядок в панели";
+"settings.popup.order.description" = "Перетаскивайте элементы, чтобы изменить их порядок в панели.";
+"settings.popup.order.battery" = "Аккумулятор";
+"settings.popup.order.volume" = "Громкость";

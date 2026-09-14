@@ -70,6 +70,7 @@
 "common.parenthetical" = "%@ (%@)";
 "common.labelValue" = "%@, %@";
 "wifi.title" = "Wi-Fi";
+"network.title" = "Network";
 "wifi.value.bars" = "%d bars";
 "wifi.value.notAssociated" = "Not associated";
 "wifi.value.off" = "Off";
@@ -112,3 +113,7 @@
 "settings.refreshInterval" = "Status refresh interval";
 "settings.refreshInterval.description" = "How often Status Trio checks for changes. Faster updates use more CPU.";
 "settings.refreshInterval.value" = "%d seconds";
+"settings.popup.order" = "Popup Order";
+"settings.popup.order.description" = "Drag items to change their order in the popup.";
+"settings.popup.order.battery" = "Battery";
+"settings.popup.order.volume" = "Volume";

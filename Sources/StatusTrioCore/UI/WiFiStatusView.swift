@@ -12,7 +12,7 @@ struct WiFiStatusView: View {
             WiFiStatusIcon(wifi: wifi)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(localization.string(.wifiTitle))
+                Text(localization.string(.networkTitle))
                     .font(.headline)
 
                 subtitle
