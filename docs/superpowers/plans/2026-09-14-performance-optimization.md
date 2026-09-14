@@ -319,7 +319,7 @@ Expected: PASS.
 
 - [ ] **Step 1: Write failing persistence and scheduling tests**
 
-Cover default 30 seconds, clamping to 5–300, step rounding, persistence, and the next sleep cycle using the updated interval.
+Cover default 5 seconds, clamping to 5–300, step rounding, persistence, and the next sleep cycle using the updated interval.
 
 - [ ] **Step 2: Run tests and verify RED**
 

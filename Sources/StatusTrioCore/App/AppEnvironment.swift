@@ -27,7 +27,7 @@ final class AppEnvironment {
         wifiMonitor: any WiFiMonitoring,
         connectionMonitor: (any NetworkConnectionMonitoring)? = nil,
         volumeMonitor: any VolumeMonitoring,
-        refreshInterval: Duration = .seconds(30)
+        refreshInterval: Duration = .seconds(5)
     ) -> SystemStatusStore {
         SystemStatusStore(
             batteryMonitor: batteryMonitor,

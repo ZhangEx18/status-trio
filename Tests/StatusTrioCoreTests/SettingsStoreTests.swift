@@ -17,8 +17,8 @@ final class SettingsStoreTests: XCTestCase {
         let store = SettingsStore(defaults: makeSuite().defaults)
 
         XCTAssertEqual(SettingsStore.refreshIntervalRange, 5...300)
-        XCTAssertEqual(store.refreshIntervalSeconds, 30, accuracy: 0.001)
-        XCTAssertEqual(store.refreshInterval, .seconds(30))
+        XCTAssertEqual(store.refreshIntervalSeconds, 5, accuracy: 0.001)
+        XCTAssertEqual(store.refreshInterval, .seconds(5))
     }
 
     func testRefreshIntervalClampsRoundsAndPersists() {
