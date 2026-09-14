@@ -21,7 +21,7 @@ final class SettingsStore: ObservableObject {
     static let showsWiFiIconForTemporaryConnectionDefaultsKey = "showsWiFiIconForTemporaryConnection"
     static let showsWiFiIconForInternetSharingDefaultsKey = "showsWiFiIconForInternetSharing"
 
-    static let refreshIntervalRange: ClosedRange<Double> = 5...300
+    static let refreshIntervalRange: ClosedRange<Double> = 5...60
     static let defaultRefreshIntervalSeconds: Double = 5
     static let refreshIntervalDefaultsKey = "statusRefreshIntervalSeconds"
 
