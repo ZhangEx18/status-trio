@@ -109,3 +109,6 @@
 "accessibility.status" = "%@, %@, %@";
 "accessibility.battery" = "Batería %d%%";
 "accessibility.volume" = "Volumen %@";
+"settings.refreshInterval" = "Intervalo de actualización";
+"settings.refreshInterval.description" = "Con qué frecuencia Status Trio comprueba cambios. Una actualización más frecuente consume más CPU.";
+"settings.refreshInterval.value" = "%d segundos";

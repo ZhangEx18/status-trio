@@ -17,6 +17,20 @@ enum StatusIconRenderer {
         options: BatteryIconOptions = .standard,
         connectionOptions: ConnectionIconOptions = .standard
     ) -> NSImage {
+        image(
+            menuBarStatus: MenuBarStatus(snapshot: snapshot),
+            size: size,
+            options: options,
+            connectionOptions: connectionOptions
+        )
+    }
+
+    static func image(
+        menuBarStatus: MenuBarStatus,
+        size: CGFloat,
+        options: BatteryIconOptions = .standard,
+        connectionOptions: ConnectionIconOptions = .standard
+    ) -> NSImage {
         // Resolve colors while AppKit draws into each menu bar. A pre-rendered
         // bitmap would keep the first display's light or dark foreground.
         NSImage(size: NSSize(width: size, height: size), flipped: false) { _ in
@@ -27,7 +41,7 @@ enum StatusIconRenderer {
 
             guard let context = NSGraphicsContext.current?.cgContext else { return false }
             draw(
-                snapshot: snapshot,
+                menuBarStatus: menuBarStatus,
                 options: options,
                 connectionOptions: connectionOptions,
                 in: context,
@@ -74,6 +88,24 @@ enum StatusIconRenderer {
         options: BatteryIconOptions = .standard,
         connectionOptions: ConnectionIconOptions = .standard
     ) -> CGImage? {
+        render(
+            menuBarStatus: MenuBarStatus(snapshot: snapshot),
+            size: size,
+            scale: scale,
+            foreground: foreground,
+            options: options,
+            connectionOptions: connectionOptions
+        )
+    }
+
+    static func render(
+        menuBarStatus: MenuBarStatus,
+        size: CGFloat,
+        scale: CGFloat,
+        foreground: CGColor,
+        options: BatteryIconOptions = .standard,
+        connectionOptions: ConnectionIconOptions = .standard
+    ) -> CGImage? {
         guard size.isFinite, scale.isFinite, size > 0, scale > 0 else { return nil }
 
         let pixelLength = (size * scale).rounded(.up)
@@ -99,7 +131,7 @@ enum StatusIconRenderer {
 
         context.scaleBy(x: scale, y: scale)
         draw(
-            snapshot: snapshot,
+            menuBarStatus: menuBarStatus,
             options: options,
             connectionOptions: connectionOptions,
             in: context,
@@ -111,7 +143,7 @@ enum StatusIconRenderer {
     }
 
     private static func draw(
-        snapshot: StatusSnapshot,
+        menuBarStatus: MenuBarStatus,
         options: BatteryIconOptions,
         connectionOptions: ConnectionIconOptions,
         in context: CGContext,
@@ -130,27 +162,27 @@ enum StatusIconRenderer {
         context.setLineJoin(.round)
 
         drawBattery(
-            snapshot.battery,
+            menuBarStatus.battery,
             options: options,
             in: context,
             foreground: foreground,
             criticalColor: criticalColor
         )
-        if snapshot.connection == .ethernet {
+        if menuBarStatus.connection == .ethernet {
             if connectionOptions.showsWiFiIconForEthernet {
-                drawStandardWiFi(snapshot.wifi, in: context, foreground: foreground)
+                drawStandardWiFi(menuBarStatus.wifi, in: context, foreground: foreground)
             } else {
                 drawEthernet(in: context, foreground: foreground)
             }
         } else {
             drawWiFi(
-                snapshot.wifi,
+                menuBarStatus.wifi,
                 options: connectionOptions,
                 in: context,
                 foreground: foreground
             )
         }
-        drawVolume(snapshot.volume, in: context, foreground: foreground)
+        drawVolume(menuBarStatus.volume, in: context, foreground: foreground)
     }
 
     private static func drawBattery(
@@ -453,7 +485,7 @@ enum StatusIconRenderer {
     }
 
     private static func drawVolume(
-        _ volume: VolumeStatus,
+        _ volume: MenuBarVolumeStatus,
         in context: CGContext,
         foreground: CGColor
     ) {

@@ -109,3 +109,6 @@
 "accessibility.status" = "%@, %@, %@";
 "accessibility.battery" = "Batterie %d%%";
 "accessibility.volume" = "Lautstärke %@";
+"settings.refreshInterval" = "Aktualisierungsintervall";
+"settings.refreshInterval.description" = "Wie oft Status Trio auf Änderungen prüft. Häufigere Aktualisierungen erhöhen die CPU-Auslastung.";
+"settings.refreshInterval.value" = "%d Sekunden";

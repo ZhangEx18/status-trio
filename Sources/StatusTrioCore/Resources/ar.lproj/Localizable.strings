@@ -109,3 +109,6 @@
 "accessibility.status" = "%@, %@, %@";
 "accessibility.battery" = "البطارية %d%%";
 "accessibility.volume" = "مستوى الصوت %@";
+"settings.refreshInterval" = "فترة تحديث الحالة";
+"settings.refreshInterval.description" = "عدد مرات تحقق Status Trio من التغييرات. تؤدي التحديثات الأكثر تكرارًا إلى استخدام CPU أكبر.";
+"settings.refreshInterval.value" = "%d ثوانٍ";

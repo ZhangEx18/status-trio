@@ -74,6 +74,7 @@ final class LocalizationTests: XCTestCase {
         let expectedPlaceholderCounts: [LocalizationKey: Int] = [
             .menuVersion: 1,
             .settingsIconSizeAccessibilityValue: 1,
+            .settingsRefreshIntervalValue: 1,
             .settingsAboutVersion: 1,
             .batteryTitle: 1,
             .batteryTimeToFullMinutes: 1,
@@ -116,6 +117,25 @@ final class LocalizationTests: XCTestCase {
             localization.format(.batteryTitle, 68),
             String(format: "电池 · %d%%", locale: Locale(identifier: "zh-Hans"), 68)
         )
+    }
+
+    func testResolvedBundlesAreCachedPerLanguage() {
+        let suite = makeSuite()
+        defer { clear(suite) }
+        var lookupCount = 0
+        let localization = Localization(
+            defaults: suite.defaults,
+            preferredLanguages: ["en"],
+            bundleProvider: { language in
+                lookupCount += 1
+                return Localization.resourceBundle(for: language)
+            }
+        )
+
+        _ = localization.string(.menuSettings)
+        _ = localization.string(.menuQuit)
+
+        XCTAssertEqual(lookupCount, 1)
     }
 
     func testGermanResourceOverridesEnglish() {

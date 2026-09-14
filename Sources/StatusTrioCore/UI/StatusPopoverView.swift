@@ -8,7 +8,17 @@ enum StatusPresentation {
         _ snapshot: StatusSnapshot,
         localization: Localization
     ) -> String {
-        let battery = snapshot.battery
+        statusItemAccessibilityValue(
+            MenuBarStatus(snapshot: snapshot),
+            localization: localization
+        )
+    }
+
+    static func statusItemAccessibilityValue(
+        _ status: MenuBarStatus,
+        localization: Localization
+    ) -> String {
+        let battery = status.battery
         let batterySummary: String
         if battery.isPresent {
             let percentage = localization.format(
@@ -29,12 +39,12 @@ enum StatusPresentation {
             batterySummary = localization.string(.batteryStateNotPresent)
         }
 
-        let networkSummary = snapshot.connection == .ethernet
+        let networkSummary = status.connection == .ethernet
             ? localization.string(.ethernetAccessibilityConnected)
-            : wifiAccessibilitySummary(snapshot.wifi, localization: localization)
+            : wifiAccessibilitySummary(status.wifi, localization: localization)
         let volumeSummary = localization.format(
             .accessibilityVolume,
-            volumeValue(snapshot.volume, localization: localization)
+            volumeValue(status.volume, localization: localization)
         )
 
         return localization.format(
@@ -163,6 +173,13 @@ enum StatusPresentation {
         _ volume: VolumeStatus,
         localization: Localization
     ) -> String {
+        volumeTitle(MenuBarVolumeStatus(volume: volume), localization: localization)
+    }
+
+    static func volumeTitle(
+        _ volume: MenuBarVolumeStatus,
+        localization: Localization
+    ) -> String {
         guard let scalar = volume.scalar, scalar.isFinite else {
             return localization.string(.volumeTitleUnavailable)
         }
@@ -172,6 +189,13 @@ enum StatusPresentation {
 
     static func volumeValue(
         _ volume: VolumeStatus,
+        localization: Localization
+    ) -> String {
+        volumeValue(MenuBarVolumeStatus(volume: volume), localization: localization)
+    }
+
+    static func volumeValue(
+        _ volume: MenuBarVolumeStatus,
         localization: Localization
     ) -> String {
         guard let scalar = volume.scalar, scalar.isFinite else { return "—" }

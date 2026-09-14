@@ -1,13 +1,16 @@
 import SwiftUI
 
 struct BasicsSettingsPane: View {
+    @ObservedObject var store: SettingsStore
     @ObservedObject var localization: Localization
     @ObservedObject private var launchAtLogin: LaunchAtLoginManager
 
     init(
+        store: SettingsStore,
         localization: Localization,
         launchAtLogin: LaunchAtLoginManager = .shared
     ) {
+        self.store = store
         self.localization = localization
         self._launchAtLogin = ObservedObject(wrappedValue: launchAtLogin)
     }
@@ -42,7 +45,43 @@ struct BasicsSettingsPane: View {
 
             Divider()
 
+            refreshIntervalSection
+
+            Divider()
+
             launchAtLoginSection
+        }
+    }
+
+    private var refreshIntervalSection: some View {
+        PreferenceRow(
+            label: .settingsRefreshInterval,
+            description: .settingsRefreshIntervalDescription
+        ) {
+            HStack(spacing: 12) {
+                Slider(
+                    value: $store.refreshIntervalSeconds,
+                    in: SettingsStore.refreshIntervalRange,
+                    step: 5
+                )
+                .accessibilityLabel(localization.string(.settingsRefreshInterval))
+                .accessibilityValue(
+                    localization.format(
+                        .settingsRefreshIntervalValue,
+                        Int(store.refreshIntervalSeconds)
+                    )
+                )
+
+                Text(
+                    localization.format(
+                        .settingsRefreshIntervalValue,
+                        Int(store.refreshIntervalSeconds)
+                    )
+                )
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .frame(width: 92, alignment: .trailing)
+            }
         }
     }
 

@@ -33,6 +33,28 @@ final class SettingsWindowControllerTests: XCTestCase {
         XCTAssertTrue(controller.window === window)
     }
 
+    func testClosingWindowReleasesContentForNextPresentation() throws {
+        let suiteName = "StatusTrioCoreTests.SettingsWindowRelease.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let controller = SettingsWindowController(
+            store: SettingsStore(defaults: defaults),
+            statusStore: makeStatusStore(),
+            localization: Localization(defaults: defaults, preferredLanguages: ["en"])
+        )
+
+        controller.show()
+        let firstWindow = try XCTUnwrap(controller.window)
+        firstWindow.close()
+        XCTAssertNil(controller.window)
+
+        controller.show()
+        let secondWindow = try XCTUnwrap(controller.window)
+        XCTAssertFalse(firstWindow === secondWindow)
+        secondWindow.close()
+    }
+
     private func makeStatusStore() -> SystemStatusStore {
         SystemStatusStore(
             batteryMonitor: NoopBatteryMonitor(),

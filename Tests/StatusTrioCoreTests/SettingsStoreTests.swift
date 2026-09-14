@@ -13,6 +13,32 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.iconSize, 28, accuracy: 0.001)
     }
 
+    func testRefreshIntervalDefaultsAndRange() {
+        let store = SettingsStore(defaults: makeSuite().defaults)
+
+        XCTAssertEqual(SettingsStore.refreshIntervalRange, 5...300)
+        XCTAssertEqual(store.refreshIntervalSeconds, 30, accuracy: 0.001)
+        XCTAssertEqual(store.refreshInterval, .seconds(30))
+    }
+
+    func testRefreshIntervalClampsRoundsAndPersists() {
+        let suite = makeSuite()
+        defer { clear(suite) }
+
+        let first = SettingsStore(defaults: suite.defaults)
+        first.refreshIntervalSeconds = 7
+        XCTAssertEqual(first.refreshIntervalSeconds, 5, accuracy: 0.001)
+
+        first.refreshIntervalSeconds = 307
+        XCTAssertEqual(first.refreshIntervalSeconds, 300, accuracy: 0.001)
+
+        first.refreshIntervalSeconds = 32
+        XCTAssertEqual(first.refreshIntervalSeconds, 30, accuracy: 0.001)
+
+        let second = SettingsStore(defaults: suite.defaults)
+        XCTAssertEqual(second.refreshIntervalSeconds, 30, accuracy: 0.001)
+    }
+
     func testBatteryDisplayDefaults() {
         let store = SettingsStore(defaults: makeSuite().defaults)
 

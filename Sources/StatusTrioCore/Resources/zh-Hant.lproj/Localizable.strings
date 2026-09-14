@@ -109,3 +109,6 @@
 "accessibility.status" = "%@，%@，%@";
 "accessibility.battery" = "電池 %d%%";
 "accessibility.volume" = "音量 %@";
+"settings.refreshInterval" = "狀態重新整理間隔";
+"settings.refreshInterval.description" = "Status Trio 檢查狀態變化的頻率。重新整理越快，CPU 使用率越高。";
+"settings.refreshInterval.value" = "%d 秒";

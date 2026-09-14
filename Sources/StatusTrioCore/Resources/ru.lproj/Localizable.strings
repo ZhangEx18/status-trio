@@ -109,3 +109,6 @@
 "accessibility.status" = "%@, %@, %@";
 "accessibility.battery" = "Батарея %d%%";
 "accessibility.volume" = "Громкость %@";
+"settings.refreshInterval" = "Интервал обновления";
+"settings.refreshInterval.description" = "Как часто Status Trio проверяет изменения. Более частое обновление увеличивает нагрузку на CPU.";
+"settings.refreshInterval.value" = "%d секунд";

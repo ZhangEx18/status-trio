@@ -109,3 +109,6 @@
 "accessibility.status" = "%@，%@，%@";
 "accessibility.battery" = "电池 %d%%";
 "accessibility.volume" = "音量 %@";
+"settings.refreshInterval" = "状态刷新间隔";
+"settings.refreshInterval.description" = "Status Trio 检查状态变化的频率。刷新越快，CPU 占用越高。";
+"settings.refreshInterval.value" = "%d 秒";

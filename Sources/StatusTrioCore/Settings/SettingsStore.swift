@@ -21,6 +21,10 @@ final class SettingsStore: ObservableObject {
     static let showsWiFiIconForTemporaryConnectionDefaultsKey = "showsWiFiIconForTemporaryConnection"
     static let showsWiFiIconForInternetSharingDefaultsKey = "showsWiFiIconForInternetSharing"
 
+    static let refreshIntervalRange: ClosedRange<Double> = 5...300
+    static let defaultRefreshIntervalSeconds: Double = 30
+    static let refreshIntervalDefaultsKey = "statusRefreshIntervalSeconds"
+
     static let outputDeviceLimitRange: ClosedRange<Int> = 1...20
     static let defaultMaxVisibleOutputDevices = 5
     static let maxVisibleOutputDevicesDefaultsKey = "maxVisibleOutputDevices"
@@ -115,6 +119,17 @@ final class SettingsStore: ObservableObject {
         }
     }
 
+    @Published var refreshIntervalSeconds: Double {
+        didSet {
+            let clamped = Self.clampedRefreshInterval(refreshIntervalSeconds)
+            guard clamped == refreshIntervalSeconds else {
+                refreshIntervalSeconds = clamped
+                return
+            }
+            defaults.set(clamped, forKey: Self.refreshIntervalDefaultsKey)
+        }
+    }
+
     @Published var maxVisibleOutputDevices: Int {
         didSet {
             let clamped = Self.clampedOutputDeviceLimit(maxVisibleOutputDevices)
@@ -141,28 +156,16 @@ final class SettingsStore: ObservableObject {
         }
     }
 
+    var refreshInterval: Duration {
+        .seconds(Int(refreshIntervalSeconds.rounded()))
+    }
+
     var visibleOutputDeviceLimit: Int? {
         alwaysShowsAllOutputDevices ? nil : maxVisibleOutputDevices
     }
 
     func orderedOutputDevices(_ devices: [AudioOutputDevice]) -> [AudioOutputDevice] {
-        guard !outputDeviceOrder.isEmpty else { return devices }
-
-        var ranks: [String: Int] = [:]
-        for (index, uid) in outputDeviceOrder.enumerated() where ranks[uid] == nil {
-            ranks[uid] = index
-        }
-
-        return devices.enumerated()
-            .sorted { lhs, rhs in
-                let leftRank = lhs.element.uid.flatMap { ranks[$0] } ?? Int.max
-                let rightRank = rhs.element.uid.flatMap { ranks[$0] } ?? Int.max
-                if leftRank != rightRank {
-                    return leftRank < rightRank
-                }
-                return lhs.offset < rhs.offset
-            }
-            .map(\.element)
+        OutputDeviceListPresentation.orderedDevices(devices, using: outputDeviceOrder)
     }
 
     func moveOutputDevices(
@@ -221,6 +224,7 @@ final class SettingsStore: ObservableObject {
         let storedCriticalThreshold = (defaults.object(forKey: Self.batteryCriticalThresholdDefaultsKey) as? NSNumber)?.doubleValue
         let storedBatterySymbolScale = (defaults.object(forKey: Self.batterySymbolScaleDefaultsKey) as? NSNumber)?.doubleValue
         let storedOutputDeviceLimit = (defaults.object(forKey: Self.maxVisibleOutputDevicesDefaultsKey) as? NSNumber)?.intValue
+        let storedRefreshInterval = (defaults.object(forKey: Self.refreshIntervalDefaultsKey) as? NSNumber)?.doubleValue
         let storedOutputDeviceOrder = defaults.stringArray(forKey: Self.outputDeviceOrderDefaultsKey) ?? []
 
         self.iconSize = Self.clampedIconSize(storedIconSize ?? Self.defaultIconSize)
@@ -245,6 +249,9 @@ final class SettingsStore: ObservableObject {
         self.showsWiFiIconForInternetSharing = defaults.object(
             forKey: Self.showsWiFiIconForInternetSharingDefaultsKey
         ) as? Bool ?? false
+        self.refreshIntervalSeconds = Self.clampedRefreshInterval(
+            storedRefreshInterval ?? Self.defaultRefreshIntervalSeconds
+        )
         self.maxVisibleOutputDevices = Self.clampedOutputDeviceLimit(
             storedOutputDeviceLimit ?? Self.defaultMaxVisibleOutputDevices
         )
@@ -273,6 +280,12 @@ final class SettingsStore: ObservableObject {
             batteryCriticalThresholdRange.upperBound,
             max(batteryCriticalThresholdRange.lowerBound, value)
         ).rounded()
+    }
+
+    static func clampedRefreshInterval(_ value: Double) -> Double {
+        guard value.isFinite else { return defaultRefreshIntervalSeconds }
+        let clamped = min(refreshIntervalRange.upperBound, max(refreshIntervalRange.lowerBound, value))
+        return (clamped / 5).rounded() * 5
     }
 
     static func clampedOutputDeviceLimit(_ value: Int) -> Int {

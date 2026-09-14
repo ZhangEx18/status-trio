@@ -6,10 +6,14 @@ private struct UncheckedSendableNSEvent: @unchecked Sendable {
     let event: NSEvent
 }
 
+private struct StatusBarAccessibilityKey: Equatable {
+    let status: MenuBarStatus
+    let language: AppLanguage
+}
+
 @MainActor
 final class StatusBarController: NSObject, NSPopoverDelegate {
     static let iconSnapshotDebounceInterval: TimeInterval = 0.5
-    static let iconFallbackRefreshInterval: TimeInterval = 5
 
     enum ClickKind: Equatable {
         case left
@@ -27,9 +31,12 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private var batteryOptionsCancellable: AnyCancellable?
     private var connectionIconOptionsCancellable: AnyCancellable?
     private var screenParametersCancellable: AnyCancellable?
+    private var refreshIntervalCancellable: AnyCancellable?
     private let openSettings: () -> Void
     private let quitAction: () -> Void
     private var appearanceObservations: [NSKeyValueObservation] = []
+    private var renderCache = StatusBarRenderCache()
+    private var accessibilityKey: StatusBarAccessibilityKey?
     private var popoverDismissMonitor: Any?
     private var volumeScrollMonitor: Any?
     private let volumeScrollAdjustment = PopupVolumeScrollAdjustment()
@@ -55,25 +62,14 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         observeAppearanceChanges()
         scheduleInitialRender()
 
-        let snapshotUpdates = store.$snapshot
+        cancellable = store.$snapshot
             .removeDuplicates()
             .dropFirst()
             .debounce(
                 for: .seconds(Self.iconSnapshotDebounceInterval),
                 scheduler: RunLoop.main
             )
-            .map { _ in () }
-
-        let periodicUpdates = Timer.publish(
-            every: Self.iconFallbackRefreshInterval,
-            on: .main,
-            in: .common
-        )
-        .autoconnect()
-        .map { _ in () }
-
-        cancellable = Publishers.Merge(snapshotUpdates, periodicUpdates)
-            .sink { [weak self] in
+            .sink { [weak self] _ in
                 self?.renderLatestSnapshot()
             }
 
@@ -82,7 +78,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             .sink { [weak self] iconSize in
                 guard let self else { return }
                 self.render(
-                    snapshot: self.store.snapshot,
+                    status: MenuBarStatus(snapshot: self.store.snapshot),
                     iconSize: iconSize,
                     options: self.settings.batteryIconOptions,
                     connectionOptions: self.settings.connectionIconOptions
@@ -112,7 +108,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
                 textScale: symbolScale * BatteryIconOptions.defaultTextScale
             )
             self.render(
-                snapshot: self.store.snapshot,
+                status: MenuBarStatus(snapshot: self.store.snapshot),
                 iconSize: self.settings.iconSize,
                 options: options,
                 connectionOptions: self.settings.connectionIconOptions
@@ -134,7 +130,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
                 showsForInternetSharing
             ) = values
             self.render(
-                snapshot: self.store.snapshot,
+                status: MenuBarStatus(snapshot: self.store.snapshot),
                 iconSize: self.settings.iconSize,
                 options: self.settings.batteryIconOptions,
                 connectionOptions: ConnectionIconOptions(
@@ -154,11 +150,11 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
                 }
             }
 
-        appearanceObservations.append(NSApp.observe(\.effectiveAppearance, options: [.new]) { [weak self] _, _ in
-            Task { @MainActor in
-                self?.renderLatestSnapshot()
+        refreshIntervalCancellable = settings.$refreshIntervalSeconds
+            .removeDuplicates()
+            .sink { [weak self] seconds in
+                self?.store.setRefreshInterval(.seconds(Int(seconds.rounded())))
             }
-        })
 
         screenParametersCancellable = NotificationCenter.default.publisher(
             for: NSApplication.didChangeScreenParametersNotification,
@@ -222,6 +218,10 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private func configurePopover() {
         popover.behavior = .transient
         popover.delegate = self
+    }
+
+    private func installPopoverContentIfNeeded() {
+        guard popover.contentViewController == nil else { return }
         let rootView = LocalizedRootView(localization: localization) {
             StatusPopoverView(
                 store: store,
@@ -245,7 +245,8 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         if popover.isShown {
             popover.performClose(nil)
         } else {
-            store.refreshForPopoverOpening()
+            store.setPopoverVisible(true)
+            installPopoverContentIfNeeded()
             popover.show(
                 relativeTo: button.bounds,
                 of: button,
@@ -351,11 +352,13 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     func popoverDidClose(_ notification: Notification) {
         removePopoverDismissMonitor()
         removeVolumeScrollMonitor()
+        store.setPopoverVisible(false)
+        popover.contentViewController = nil
     }
 
-    private func render(snapshot: StatusSnapshot) {
+    private func render(status: MenuBarStatus) {
         render(
-            snapshot: snapshot,
+            status: status,
             iconSize: settings.iconSize,
             options: settings.batteryIconOptions,
             connectionOptions: settings.connectionIconOptions
@@ -363,30 +366,46 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     }
 
     private func render(
-        snapshot: StatusSnapshot,
+        status: MenuBarStatus,
         iconSize: Double,
         options: BatteryIconOptions,
         connectionOptions: ConnectionIconOptions
     ) {
         guard let button = statusItem.button else { return }
+
+        let key = StatusBarRenderKey(
+            status: status,
+            iconSize: iconSize,
+            options: options,
+            connectionOptions: connectionOptions,
+            appearanceName: button.effectiveAppearance.name.rawValue
+        )
+        guard renderCache.shouldRender(key) else { return }
+
         button.image = StatusIconRenderer.image(
-            snapshot: snapshot,
+            menuBarStatus: status,
             size: iconSize,
             options: options,
             connectionOptions: connectionOptions
         )
-        button.setNeedsDisplay(button.bounds)
+
+        let nextAccessibilityKey = StatusBarAccessibilityKey(
+            status: status,
+            language: localization.resolvedLanguage
+        )
+        guard nextAccessibilityKey != accessibilityKey else { return }
+        accessibilityKey = nextAccessibilityKey
         button.setAccessibilityLabel(StatusPresentation.statusItemAccessibilityLabel)
         button.setAccessibilityValue(
             StatusPresentation.statusItemAccessibilityValue(
-                snapshot,
+                status,
                 localization: localization
             )
         )
     }
 
     private func renderLatestSnapshot() {
-        render(snapshot: store.snapshot)
+        render(status: MenuBarStatus(snapshot: store.snapshot))
     }
 
     private static var appVersion: String {

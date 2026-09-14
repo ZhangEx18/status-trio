@@ -26,24 +26,27 @@ final class AppEnvironment {
         batteryMonitor: any BatteryMonitoring,
         wifiMonitor: any WiFiMonitoring,
         connectionMonitor: (any NetworkConnectionMonitoring)? = nil,
-        volumeMonitor: any VolumeMonitoring
+        volumeMonitor: any VolumeMonitoring,
+        refreshInterval: Duration = .seconds(30)
     ) -> SystemStatusStore {
         SystemStatusStore(
             batteryMonitor: batteryMonitor,
             wifiMonitor: wifiMonitor,
             connectionMonitor: connectionMonitor,
-            volumeMonitor: volumeMonitor
+            volumeMonitor: volumeMonitor,
+            refreshInterval: refreshInterval
         )
     }
 
     static func live() -> AppEnvironment {
+        let settings = SettingsStore()
         let store = makeStore(
             batteryMonitor: BatteryMonitor(),
             wifiMonitor: WiFiMonitor(),
             connectionMonitor: NetworkConnectionMonitor(),
-            volumeMonitor: VolumeMonitor(outputController: CoreAudioOutputController())
+            volumeMonitor: VolumeMonitor(outputController: CoreAudioOutputController()),
+            refreshInterval: settings.refreshInterval
         )
-        let settings = SettingsStore()
         let localization = Localization()
         let settingsWindowController = SettingsWindowController(
             store: settings,

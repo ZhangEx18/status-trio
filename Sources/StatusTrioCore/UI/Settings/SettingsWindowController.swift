@@ -44,6 +44,8 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         leaveActivationPolicyIfNeeded()
+        window = nil
+        tabController = nil
     }
 
     private func makeWindow() -> NSWindow {
@@ -65,7 +67,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
         window.contentViewController = tabController
         window.delegate = self
-        window.isReleasedWhenClosed = false
+        window.isReleasedWhenClosed = true
         window.isMovableByWindowBackground = true
         window.titleVisibility = .visible
         window.titlebarAppearsTransparent = true

@@ -109,3 +109,6 @@
 "accessibility.status" = "%@, %@, %@";
 "accessibility.battery" = "Battery %d%%";
 "accessibility.volume" = "Volume %@";
+"settings.refreshInterval" = "Status refresh interval";
+"settings.refreshInterval.description" = "How often Status Trio checks for changes. Faster updates use more CPU.";
+"settings.refreshInterval.value" = "%d seconds";

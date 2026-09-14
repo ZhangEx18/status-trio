@@ -109,3 +109,6 @@
 "accessibility.status" = "%@, %@, %@";
 "accessibility.battery" = "배터리 %d%%";
 "accessibility.volume" = "볼륨 %@";
+"settings.refreshInterval" = "상태 새로 고침 간격";
+"settings.refreshInterval.description" = "Status Trio가 변경 사항을 확인하는 빈도입니다. 더 자주 확인하면 CPU 사용량이 늘어납니다.";
+"settings.refreshInterval.value" = "%d초";
