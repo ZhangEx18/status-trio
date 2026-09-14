@@ -258,7 +258,7 @@ ruby "$ROOT/scripts/update-appcast.rb" \
     "$DMG_URL" \
     "$ED_SIGNATURE" \
     "$DMG_LENGTH" \
-    "$RELEASE_NOTES_FILE" \
+    "$RELEASE_BODY_FILE" \
     "$APPCAST_PATH"
 
 xmllint --noout "$APPCAST_PATH"

@@ -6,12 +6,12 @@
     <description>Most recent changes for Status Trio.</description>
     <language>en</language>
     <item>
-      <title>Version 1.0.3 (Build 4)</title>
+      <title>Version 1.0.3 (Build 4) （English + 中文， 中文在下方）</title>
       <pubDate>Mon, 14 Sep 2026 07:22:38 +0000</pubDate>
       <sparkle:version>4</sparkle:version>
       <sparkle:shortVersionString>1.0.3</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[<ul><li>Add configurable Wi-Fi status icons for connected and disconnected states.</li><li>Show a dedicated Ethernet icon when a wired connection is active.</li><li>Expand the menu bar icon size range.</li><li>Add output device list customization, including visibility controls, expand-all mode, and persistent drag reordering.</li><li>Improve popup icon alignment, volume controls, and the automatic updates toggle.</li></ul>]]></description>
+      <description><![CDATA[<h2>English</h2><ul><li>Add configurable Wi-Fi status icons for connected and disconnected states.</li><li>Show a dedicated Ethernet icon when a wired connection is active.</li><li>Expand the menu bar icon size range.</li><li>Add output device list customization, including visibility controls, expand-all mode, and persistent drag reordering.</li><li>Improve popup icon alignment, volume controls, and the automatic updates toggle.</li></ul><h2>中文</h2><ul><li>支持为 Wi-Fi 已连接和未连接状态配置菜单栏图标。</li><li>有线网络连接时显示专属以太网状态图标。</li><li>扩大菜单栏图标尺寸的可调范围。</li><li>新增输出设备列表自定义功能，支持可见性、全部展开和持久化拖拽排序。</li><li>优化弹出窗口图标对齐、音量控制和自动更新开关。</li></ul>]]></description>
       <enclosure url="https://github.com/lingyired/status-trio/releases/download/v1.0.3/StatusTrio-1.0.3.dmg"
                  type="application/octet-stream"
                  sparkle:edSignature="NrXoTnX8KkmgkY4wARp4APjYvQXflJKe5i2b8SHDaY7I80RFRWt21dscdjT5WSoJZwlqd9gVzFrVqTWEb4cjDg=="

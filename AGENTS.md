@@ -44,7 +44,7 @@ Do not create a release if that preflight has not passed.
 ## Release Rules
 
 - GitHub Release notes must use a top-level `# Version X.Y.Z （English + 中文， 中文在下方）` heading, followed by English notes and then Chinese notes. Provide the English text through `release_notes` and the Chinese text through `release_notes_zh`; the release workflow combines them.
-- Sparkle appcast descriptions and release announcements remain in English. The appcast uses the English `release_notes` content only.
+- Sparkle appcast items must use the same bilingual order: the version title includes `（English + 中文， 中文在下方）`, followed by English notes and then Chinese notes. Release announcements remain in English.
 - Release through `.github/workflows/release.yml`; do not publish manually unless the workflow is unavailable and the user explicitly asks for a manual fallback.
 - Version and build numbers must be explicit and must increase the published build number.
 - Confirm tests, DMG creation, Release upload, and appcast publication in the workflow result.

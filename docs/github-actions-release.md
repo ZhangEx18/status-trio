@@ -45,7 +45,7 @@ GitHub Release 正文必须包含英文和中文，英文在上、中文在下�
 
 工作流会根据 `version` 自动生成标题，并把 `release_notes` 和 `release_notes_zh` 合并为上述格式。`publish=true` 时必须提供 `release_notes_zh`；未提供 `release_notes` 时，英文部分会根据上一个 tag 到当前提交自动生成。
 
-Sparkle `appcast.xml` 描述继续只使用英文 `release_notes`，避免应用内更新说明混入版本标题和双语重复内容。
+Sparkle `appcast.xml` 使用同一份双语说明：条目标题包含版本号和 `（English + 中文， 中文在下方）`，描述按 English、中文两个区块显示。
 
 ## 第一次配置
 
