@@ -44,6 +44,7 @@ final class AppEnvironment {
         let localization = Localization()
         let settingsWindowController = SettingsWindowController(
             store: settings,
+            statusStore: store,
             localization: localization
         )
         let controller = StatusBarController(

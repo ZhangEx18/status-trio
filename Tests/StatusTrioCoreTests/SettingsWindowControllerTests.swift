@@ -13,6 +13,7 @@ final class SettingsWindowControllerTests: XCTestCase {
         localization.setPreference(.language(.simplifiedChinese))
         let controller = SettingsWindowController(
             store: SettingsStore(defaults: defaults),
+            statusStore: makeStatusStore(),
             localization: localization
         )
         XCTAssertNil(controller.window)
@@ -31,4 +32,55 @@ final class SettingsWindowControllerTests: XCTestCase {
         controller.show()
         XCTAssertTrue(controller.window === window)
     }
+
+    private func makeStatusStore() -> SystemStatusStore {
+        SystemStatusStore(
+            batteryMonitor: NoopBatteryMonitor(),
+            wifiMonitor: NoopWiFiMonitor(),
+            volumeMonitor: NoopVolumeMonitor()
+        )
+    }
+}
+
+@MainActor
+private final class NoopBatteryMonitor: BatteryMonitoring {
+    let updates: AsyncStream<BatteryStatus>
+
+    init() {
+        (updates, _) = AsyncStream.makeStream()
+    }
+
+    func start() {}
+    func stop() {}
+    func refresh() {}
+    func recover() {}
+}
+
+@MainActor
+private final class NoopWiFiMonitor: WiFiMonitoring {
+    let updates: AsyncStream<WiFiStatus>
+
+    init() {
+        (updates, _) = AsyncStream.makeStream()
+    }
+
+    func start() {}
+    func stop() {}
+    func refresh() {}
+    func recover() {}
+    func requestNameAccess() {}
+}
+
+@MainActor
+private final class NoopVolumeMonitor: VolumeMonitoring {
+    let updates: AsyncStream<VolumeStatus>
+
+    init() {
+        (updates, _) = AsyncStream.makeStream()
+    }
+
+    func start() {}
+    func stop() {}
+    func refresh() {}
+    func recover() {}
 }
