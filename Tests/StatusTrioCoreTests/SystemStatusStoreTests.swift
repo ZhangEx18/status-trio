@@ -193,9 +193,20 @@ final class SystemStatusStoreTests: XCTestCase {
             refreshInterval: .seconds(60)
         )
 
+        let batteryUpdated = expectation(description: "battery snapshot published")
+        var cancellables = Set<AnyCancellable>()
+        store.$snapshot
+            .dropFirst()
+            .sink { snapshot in
+                if snapshot.battery.percentage == 42 {
+                    batteryUpdated.fulfill()
+                }
+            }
+            .store(in: &cancellables)
+
         store.start()
         battery.send(makeBattery(percentage: 42))
-        await drainMainActorTasks()
+        await fulfillment(of: [batteryUpdated], timeout: 1)
 
         XCTAssertEqual(store.snapshot.battery.percentage, 42)
         XCTAssertEqual(store.popupSnapshot.battery.percentage, 100)
@@ -206,6 +217,7 @@ final class SystemStatusStoreTests: XCTestCase {
         XCTAssertEqual(battery.refreshCount, 1)
         XCTAssertEqual(wifi.refreshCount, 1)
         XCTAssertEqual(volume.refreshCount, 1)
+        cancellables.removeAll()
         store.stop()
     }
 
