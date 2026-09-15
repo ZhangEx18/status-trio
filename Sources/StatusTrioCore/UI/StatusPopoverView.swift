@@ -266,8 +266,12 @@ struct StatusPopoverView: View {
 
             Divider()
 
-            Button(localization.string(.menuSettings)) {
+            Button {
                 openSettings()
+            } label: {
+                Text(localization.string(.menuSettings))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
