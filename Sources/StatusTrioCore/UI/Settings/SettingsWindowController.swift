@@ -8,6 +8,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     private let statusStore: SystemStatusStore
     private let localization: Localization
     private let activationPolicy: AppActivationPolicy
+    private let showIconGuide: () -> Void
     private var localizationCancellable: AnyCancellable?
     private var ownsActivationPolicy = false
 
@@ -15,12 +16,14 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         store: SettingsStore,
         statusStore: SystemStatusStore,
         localization: Localization,
-        activationPolicy: AppActivationPolicy
+        activationPolicy: AppActivationPolicy,
+        showIconGuide: @escaping () -> Void
     ) {
         self.store = store
         self.statusStore = statusStore
         self.localization = localization
         self.activationPolicy = activationPolicy
+        self.showIconGuide = showIconGuide
         super.init(window: nil)
 
         localizationCancellable = localization.$resolvedLanguage
@@ -65,7 +68,8 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
             SettingsView(
                 store: store,
                 statusStore: statusStore,
-                localization: localization
+                localization: localization,
+                onShowIconGuide: showIconGuide
             )
         }
 
