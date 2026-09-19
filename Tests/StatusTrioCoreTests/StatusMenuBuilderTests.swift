@@ -93,20 +93,14 @@ final class StatusMenuBuilderTests: XCTestCase {
     }
 
     func testSystemSettingsURLFallbackOrder() {
+        // The Wi-Fi route must come first on every supported macOS version: the
+        // Network pane lists services, not networks, and System Settings still
+        // reports success for it, so a wrong first route is never corrected by
+        // the fallbacks.
         XCTAssertEqual(
-            StatusBarController.wifiSettingsURLs(
-                operatingSystemVersion: OperatingSystemVersion(majorVersion: 27, minorVersion: 0, patchVersion: 0)
-            ).map(\.absoluteString),
+            StatusBarController.wifiSettingsURLs.map(\.absoluteString),
             [
                 "x-apple.systempreferences:com.apple.wifi-settings-extension",
-                "x-apple.systempreferences:com.apple.Network-Settings.extension?Wi-Fi"
-            ]
-        )
-        XCTAssertEqual(
-            StatusBarController.wifiSettingsURLs(
-                operatingSystemVersion: OperatingSystemVersion(majorVersion: 15, minorVersion: 0, patchVersion: 0)
-            ).map(\.absoluteString),
-            [
                 "x-apple.systempreferences:com.apple.Network-Settings.extension?Wi-Fi",
                 "x-apple.systempreferences:com.apple.preference.network?Wi-Fi"
             ]
