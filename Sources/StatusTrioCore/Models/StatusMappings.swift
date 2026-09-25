@@ -1,5 +1,13 @@
 import Foundation
 
+enum BatteryLevelBucket: Equatable, Sendable {
+    case empty
+    case quarter
+    case half
+    case threeQuarter
+    case full
+}
+
 enum BatteryColorRole: Equatable, Sendable {
     case foreground
     case critical
@@ -97,6 +105,16 @@ enum StatusMappings {
 
     static func batteryProgress(_ battery: BatteryStatus) -> Double {
         Double(battery.percentage) / 100.0
+    }
+
+    static func batteryLevelBucket(_ battery: BatteryStatus) -> BatteryLevelBucket {
+        switch battery.percentage {
+        case 88...100: return .full
+        case 63..<88: return .threeQuarter
+        case 38..<63: return .half
+        case 13..<38: return .quarter
+        default: return .empty
+        }
     }
 
     static func shouldReplaceNetworkIcon(

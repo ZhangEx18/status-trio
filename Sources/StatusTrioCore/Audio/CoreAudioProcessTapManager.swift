@@ -2,8 +2,11 @@ import AudioToolbox
 import Foundation
 
 /// Small, allocation-free helpers shared by the real-time IO callback and tests.
-enum AudioTapBufferProcessor {
-    static func gain(volume: Double, muted: Bool) -> Float {
+///
+/// This type is deliberately nonisolated. It is called from Core Audio's IO
+/// thread, which is not a Swift actor executor.
+enum AudioTapRealtimeProcessor {
+    nonisolated static func gain(volume: Double, muted: Bool) -> Float {
         guard !muted else { return 0 }
         let normalized = volume.isFinite ? volume : PerAppAudioSettings.defaultVolume
         return Float(min(PerAppAudioSettings.maximumVolume, max(0, normalized)))
@@ -17,6 +20,21 @@ enum AudioTapBufferProcessor {
         for index in samples.indices {
             samples[index] *= gain
         }
+    }
+}
+
+/// Compatibility facade for the value-level tests and callers that do not run
+/// on the audio thread.
+enum AudioTapBufferProcessor {
+    static func gain(volume: Double, muted: Bool) -> Float {
+        AudioTapRealtimeProcessor.gain(volume: volume, muted: muted)
+    }
+
+    nonisolated static func applyGain(
+        _ gain: Float,
+        to samples: UnsafeMutableBufferPointer<Float>
+    ) {
+        AudioTapRealtimeProcessor.applyGain(gain, to: samples)
     }
 }
 
@@ -52,7 +70,7 @@ private final class AudioTapSession: @unchecked Sendable {
         self.gain = AudioTapBufferProcessor.gain(volume: volume, muted: isMuted)
     }
 
-    func process(
+    nonisolated func process(
         inputData: UnsafePointer<AudioBufferList>,
         outputData: UnsafeMutablePointer<AudioBufferList>
     ) {
@@ -76,7 +94,7 @@ private final class AudioTapSession: @unchecked Sendable {
 
             guard byteCount.isMultiple(of: MemoryLayout<Float>.stride) else { continue }
             let samples = outputData.assumingMemoryBound(to: Float.self)
-            AudioTapBufferProcessor.applyGain(
+            AudioTapRealtimeProcessor.applyGain(
                 gain,
                 to: UnsafeMutableBufferPointer(
                     start: samples,
@@ -95,6 +113,26 @@ private final class AudioTapSession: @unchecked Sendable {
         _ = AudioHardwareDestroyAggregateDevice(aggregateID)
         _ = AudioHardwareDestroyProcessTap(tapID)
     }
+}
+
+/// C-compatible callback used by the Core Audio IO thread. Keeping this as a
+/// file-level function prevents a `@MainActor` closure from being inherited by
+/// the realtime callback.
+private func audioTapIOProc(
+    _ deviceID: AudioObjectID,
+    _ now: UnsafePointer<AudioTimeStamp>,
+    _ inputData: UnsafePointer<AudioBufferList>,
+    _ inputTime: UnsafePointer<AudioTimeStamp>,
+    _ outputData: UnsafeMutablePointer<AudioBufferList>,
+    _ outputTime: UnsafePointer<AudioTimeStamp>,
+    _ clientData: UnsafeMutableRawPointer?
+) -> OSStatus {
+    guard let clientData else { return noErr }
+    let session = Unmanaged<AudioTapSession>
+        .fromOpaque(clientData)
+        .takeUnretainedValue()
+    session.process(inputData: inputData, outputData: outputData)
+    return noErr
 }
 
 /// First real Process Tap implementation: one App routed to the current default
@@ -260,14 +298,12 @@ final class CoreAudioProcessTapManager: ProcessTapManaging {
             isMuted: initialMuted
         )
         var ioProcID: AudioDeviceIOProcID?
-        let ioStatus = AudioDeviceCreateIOProcIDWithBlock(
-            &ioProcID,
+        let ioStatus = AudioDeviceCreateIOProcID(
             aggregateID,
-            nil
-        ) { [weak session] _, inputData, _, outputData, _ in
-            guard let session else { return }
-            session.process(inputData: inputData, outputData: outputData)
-        }
+            audioTapIOProc,
+            Unmanaged.passUnretained(session).toOpaque(),
+            &ioProcID
+        )
         guard ioStatus == noErr, let ioProcID else {
             session.stop()
             throw PerAppAudioError.unavailable

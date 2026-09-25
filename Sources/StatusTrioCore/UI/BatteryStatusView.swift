@@ -12,9 +12,7 @@ struct BatteryStatusView: View {
         HStack(spacing: 10) {
             Button(action: onOpenBatteryDetails) {
                 HStack(spacing: 10) {
-                    Image(systemName: batterySymbolName)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(batterySymbolColor)
+                    batteryIcon
                         .frame(width: 24, height: 24)
                         .accessibilityHidden(true)
 
@@ -63,17 +61,33 @@ struct BatteryStatusView: View {
     /// and shows no chevron — the same shape as an unavailable Bluetooth radio.
     var showsDetailAffordance: Bool { battery.isPresent }
 
-    private var batterySymbolName: String {
-        guard battery.isPresent else { return "battery.slash" }
-        if battery.isCharging || battery.isConnectedToPower {
-            return "battery.100.bolt"
+    @ViewBuilder
+    private var batteryIcon: some View {
+        if !battery.isPresent {
+            Image(systemName: "battery.slash")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(batterySymbolColor)
+        } else {
+            ZStack {
+                Image(systemName: batteryLevelSymbolName)
+                    .font(.system(size: 15, weight: .medium))
+
+                if battery.isCharging {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 8, weight: .bold))
+                }
+            }
+            .foregroundStyle(batterySymbolColor)
         }
-        switch battery.percentage {
-        case 88...100: return "battery.100"
-        case 63..<88:  return "battery.75"
-        case 38..<63:  return "battery.50"
-        case 13..<38:  return "battery.25"
-        default:       return "battery.0"
+    }
+
+    private var batteryLevelSymbolName: String {
+        switch StatusMappings.batteryLevelBucket(battery) {
+        case .full: return "battery.100"
+        case .threeQuarter: return "battery.75"
+        case .half: return "battery.50"
+        case .quarter: return "battery.25"
+        case .empty: return "battery.0"
         }
     }
 
