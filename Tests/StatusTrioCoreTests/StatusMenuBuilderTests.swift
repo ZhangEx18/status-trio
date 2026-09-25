@@ -20,7 +20,7 @@ final class StatusMenuBuilderTests: XCTestCase {
             "Status Trio 1.0.0",
             "设置…",
             "",
-            "退出 Status Trio"
+            "退出 ⌘Q"
         ])
         XCTAssertFalse(versionItem.isEnabled)
         XCTAssertFalse(settingsItem.isEnabled)

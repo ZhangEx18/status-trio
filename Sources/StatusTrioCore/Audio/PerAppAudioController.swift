@@ -233,13 +233,23 @@ final class PerAppAudioController: ObservableObject {
     }
 
     func setMuted(_ isMuted: Bool, for app: AudioAppDescriptor) {
+        // Browser and media apps can replace their audio helper processes while
+        // playback continues. Refresh before applying the mute so the tap covers
+        // every current Core Audio process object, rather than a stale snapshot.
+        monitor.refresh()
+        let currentApp = apps.first {
+            $0.persistenceIdentifier == app.persistenceIdentifier
+        } ?? app
         var settings = settings(for: app)
         settings.isMuted = isMuted
         settingsStore.set(settings, for: app.persistenceIdentifier)
         objectWillChange.send()
-        guard !app.processObjectIDs.isEmpty else { return }
+        guard !currentApp.processObjectIDs.isEmpty else {
+            lastError = .processUnavailable
+            return
+        }
         apply {
-            try tapManager.setMuted(isMuted, for: app)
+            try tapManager.setMuted(isMuted, for: currentApp)
         }
     }
 
