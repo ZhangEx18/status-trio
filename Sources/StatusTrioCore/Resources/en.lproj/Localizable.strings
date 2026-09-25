@@ -322,7 +322,7 @@
 "battery.details.current" = "Battery current";
 "battery.details.sampled" = "Battery sampled at";
 "battery.details.adapter" = "Adapter rating";
-"battery.details.remaining" = "Time remaining";
+"battery.details.remaining" = "Estimated time remaining";
 "battery.details.cycles" = "Cycle count";
 "battery.details.lowPower" = "Low Power Mode";
 "battery.details.on" = "On";

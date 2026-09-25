@@ -40,7 +40,7 @@ struct BatteryDetailsView: View {
                     minutes: battery.timeToFullChargeMinutes, localization: localization))
                     .foregroundStyle(.secondary)
             } else if !battery.isConnectedToPower {
-                row(.batteryDetailsRemaining, (battery.remainingMinutes ?? controller.details?.remainingMinutes).map {
+                row(.batteryDetailsRemaining, BatteryRemainingTimePresentation.minutes(battery: battery, details: controller.details).map {
                     Duration.seconds(Double($0) * 60).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated).locale(localization.resolvedLanguage.locale))
                 } ?? localization.string(.batteryDetailsUnavailable))
             }
