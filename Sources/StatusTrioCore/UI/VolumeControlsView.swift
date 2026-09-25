@@ -89,7 +89,17 @@ struct VolumeControlsView: View {
         if volume.isMuted {
             return "speaker.slash"
         }
-        return "speaker.fill"
+        let scalar = isAdjusting ? draftVolume : (volume.scalar ?? draftVolume)
+        switch scalar {
+        case ..<0.01:
+            return "speaker.fill"
+        case ..<0.34:
+            return "speaker.wave.1.fill"
+        case ..<0.67:
+            return "speaker.wave.2.fill"
+        default:
+            return "speaker.wave.3.fill"
+        }
     }
 
     private var percentageText: String {
