@@ -24,7 +24,7 @@ final class AppMainMenuTests: XCTestCase {
                 "隐藏 \(AppMetadata.name)",
                 "隐藏其他",
                 "显示全部",
-                "退出 Status Trio"
+                "退出 ⌘Q"
             ]
         )
         XCTAssertEqual(appMenu.items.filter(\.isSeparatorItem).count, 3)
