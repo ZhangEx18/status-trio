@@ -164,12 +164,14 @@ final class CoreAudioProcessTapManager: ProcessTapManaging {
         for app: AudioAppDescriptor
     ) throws {
         guard isStarted else { throw PerAppAudioError.unavailable }
+        let currentVolume = sessions[app.id]?.volume ?? PerAppAudioSettings.defaultVolume
+        let currentMuted = sessions[app.id]?.isMuted ?? false
         sessions[app.id]?.stop()
         sessions.removeValue(forKey: app.id)
         _ = try session(
             for: app,
-            initialVolume: PerAppAudioSettings.defaultVolume,
-            initialMuted: false,
+            initialVolume: currentVolume,
+            initialMuted: currentMuted,
             outputDeviceUID: routing == .explicit ? outputDeviceUIDs.first : nil
         )
     }
