@@ -58,13 +58,12 @@ final class SettingsWindowControllerTests: XCTestCase {
         controller.show()
         let firstWindow = try XCTUnwrap(controller.window)
         firstWindow.close()
-        controller.windowDidClose(Notification(name: NSWindow.didResizeNotification))
-        XCTAssertTrue(controller.window === firstWindow)
+        XCTAssertNil(controller.window)
         XCTAssertEqual(activationApplication.policies, [.regular, .accessory])
 
         controller.show()
         let secondWindow = try XCTUnwrap(controller.window)
-        XCTAssertTrue(firstWindow === secondWindow)
+        XCTAssertFalse(firstWindow === secondWindow)
         secondWindow.close()
     }
 
