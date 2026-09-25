@@ -96,6 +96,10 @@ enum StatusPresentation {
         if !battery.isPresent {
             return localization.string(.batteryStateNotPresent)
         }
+        if battery.isConnectedToPower, !battery.isCharging,
+           let limit = battery.chargeLimit, limit < 100, battery.percentage >= limit {
+            return localization.format(.batteryStateChargedToLimit, limit)
+        }
         if battery.isCharged {
             return localization.string(.batteryStateCharged)
         }
@@ -418,7 +422,8 @@ struct StatusPopoverView: View {
                 onVolumeChange: { store.setVolume($0) },
                 onToggleMute: { store.toggleMute() },
                 onSelectOutputDevice: { store.selectOutputDevice($0) },
-                onOpenSoundSettings: openSoundSettings
+                onOpenSoundSettings: openSoundSettings,
+                onEditingChanged: { store.setVolumeEditing($0) }
             )
         case .audioInput:
             AudioInputControlsView(

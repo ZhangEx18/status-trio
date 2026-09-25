@@ -16,6 +16,9 @@ struct UnifiedAudioPanelView: View {
                 tabButton(.input, symbol: "mic.fill", title: .audioInputTitle)
                 Spacer()
                 if tab == .input {
+                    Text([store.liveVolume.deviceName, store.liveInput.deviceName].compactMap { $0 }.joined(separator: " · "))
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Spacer()
                     Button(action: onOpenSoundSettings) {
                         Image(systemName: "gearshape")
                     }
@@ -32,7 +35,9 @@ struct UnifiedAudioPanelView: View {
                     onScalarChange: { store.setInputScalar($0) },
                     onToggleMute: { store.toggleInputMute() },
                     onOpenSoundSettings: onOpenSoundSettings,
-                    compact: true
+                    compact: true,
+                    onDeviceScalarChange: { store.setInputDeviceScalar($0, on: $1) },
+                    onDeviceMutedChange: { store.setInputDeviceMuted($0, on: $1) }
                 )
             }
             Divider()
@@ -61,6 +66,7 @@ struct UnifiedAudioPanelView: View {
         VolumeControlsView(settings: settings, scrollTargets: scrollTargets,
             volume: store.liveVolume, isEnabled: store.isVolumeControlAvailable,
             onVolumeChange: { store.setVolume($0) }, onToggleMute: { store.toggleMute() },
-            onSelectOutputDevice: { store.selectOutputDevice($0) }, onOpenSoundSettings: onOpenSoundSettings)
+            onSelectOutputDevice: { store.selectOutputDevice($0) }, onOpenSoundSettings: onOpenSoundSettings,
+            onEditingChanged: { store.setVolumeEditing($0) })
     }
 }

@@ -81,7 +81,8 @@ final class StatusMenuBuilderTests: XCTestCase {
     }
 
     func testStatusBarUpdateCadence() {
-        XCTAssertEqual(StatusBarController.iconSnapshotDebounceInterval, 0.5)
+        XCTAssertEqual(StatusBarController.iconSnapshotThrottleInterval, 1.0 / 30.0)
+        XCTAssertEqual(StatusBarController.iconSnapshotThrottleInterval, AppIconController.snapshotThrottleInterval)
     }
 
     func testClickClassification() {

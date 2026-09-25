@@ -197,6 +197,8 @@ struct AudioInputControlsView: View {
     let onToggleMute: () -> Void
     let onOpenSoundSettings: () -> Void
     var compact = false
+    var onDeviceScalarChange: (Double, AudioDeviceID) -> Void = { _, _ in }
+    var onDeviceMutedChange: (Bool, AudioDeviceID) -> Void = { _, _ in }
 
     @State private var volumeDraft = AudioInputVolumeDraft()
 
@@ -432,9 +434,10 @@ struct AudioInputControlsView: View {
                     if compact {
                         HStack(spacing: 8) {
                             deviceRow(device, position: (orderedDevices.firstIndex(where: { $0.id == device.id }) ?? 0) + 1)
-                            if device.id == status.defaultDeviceID {
-                                controls.frame(width: 155)
-                            }
+                            AudioInputDeviceControlsRow(device: device, status: status,
+                                onScalar: { onDeviceScalarChange($0, device.id) },
+                                onMuted: { onDeviceMutedChange($0, device.id) })
+                                .frame(width: 145)
                         }
                     } else {
                         deviceRow(device, position: (orderedDevices.firstIndex(where: { $0.id == device.id }) ?? 0) + 1)
@@ -485,7 +488,7 @@ struct AudioInputControlsView: View {
             onSelect(device.id)
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: isCurrent ? "mic.fill" : "mic")
+                AudioInputDeviceIconView(device: device)
                     .foregroundStyle(isCurrent ? Color.white : Color.secondary)
                     .frame(width: 28, height: 28)
                     .background(isCurrent ? Color.accentColor : Color.secondary.opacity(0.12), in: Circle())

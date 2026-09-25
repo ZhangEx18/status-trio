@@ -15,6 +15,7 @@ final class BatteryMonitorTests: XCTestCase {
             let result = await iterator.next()
             XCTAssertEqual(result?.isCharged, connected)
             XCTAssertEqual(result?.percentage, 95)
+            XCTAssertEqual(result?.chargeLimit, 95)
             XCTAssertNil(result?.timeToFullChargeMinutes)
             monitor.stop()
         }

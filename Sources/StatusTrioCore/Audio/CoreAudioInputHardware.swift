@@ -124,10 +124,18 @@ struct CoreAudioInputHardware: AudioInputHardware {
     let devices =
       includeDevices
       ? eligibleIDs.map { id in
-        AudioInputDevice(
+        let volume = readVolume(id)
+        let mute = readMute(id)
+        return AudioInputDevice(
           id: id,
           uid: normalized(client.uid(id)),
-          name: normalized(client.name(id))
+          name: normalized(client.name(id)),
+          scalar: volume.scalar,
+          canSetVolume: volume.canSet,
+          muteState: mute.state,
+          canSetMute: mute.canSet,
+          iconURL: client.iconURL(id),
+          transport: client.transport(id)
         )
       }
       : nil
@@ -681,6 +689,26 @@ private struct CoreAudioInputPropertyClient: AudioInputPropertyClient, AudioInpu
       scope: kAudioObjectPropertyScopeInput
     )
     return (try? streamChannelCount(objectID: id, address: address)) ?? 0
+  }
+
+  func iconURL(_ id: AudioDeviceID) -> URL? {
+    var address = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyIcon,
+      mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+    var size = UInt32(MemoryLayout<Unmanaged<CFURL>?>.size)
+    var value: Unmanaged<CFURL>?
+    guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &value) == noErr,
+      size == UInt32(MemoryLayout<Unmanaged<CFURL>?>.size) else { return nil }
+    return value?.takeRetainedValue() as URL?
+  }
+
+  func transport(_ id: AudioDeviceID) -> UInt32? {
+    var address = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyTransportType,
+      mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+    var size = UInt32(MemoryLayout<UInt32>.size)
+    var value: UInt32 = 0
+    guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &value) == noErr,
+      size == UInt32(MemoryLayout<UInt32>.size) else { return nil }
+    return value
   }
 
   func name(_ id: AudioDeviceID) -> String? {

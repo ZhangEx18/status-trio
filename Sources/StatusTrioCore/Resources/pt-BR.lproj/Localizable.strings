@@ -385,3 +385,5 @@
 "audio.routing.system" = "System audio";
 "audio.routing.followSystem" = "Follow macOS default device";
 "audio.routing.systemUnavailable" = "Unavailable in multi-device mode";
+
+"battery.state.charged_to_limit" = "Carregada até o limite de %d%%";

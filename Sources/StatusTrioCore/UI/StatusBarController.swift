@@ -13,7 +13,7 @@ private struct StatusBarAccessibilityKey: Equatable {
 
 @MainActor
 final class StatusBarController: NSObject, NSPopoverDelegate {
-    static let iconSnapshotDebounceInterval: TimeInterval = 0.5
+    static let iconSnapshotThrottleInterval: TimeInterval = 1.0 / 30.0
     static let popoverToggleLockoutInterval: TimeInterval = 0.25
     static let popoverContentReleaseDelay: TimeInterval = 60
 
@@ -95,9 +95,10 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             .map { MenuBarStatus(snapshot: $0) }
             .removeDuplicates()
             .dropFirst()
-            .debounce(
-                for: .seconds(Self.iconSnapshotDebounceInterval),
-                scheduler: RunLoop.main
+            .throttle(
+                for: .seconds(Self.iconSnapshotThrottleInterval),
+                scheduler: RunLoop.main,
+                latest: true
             )
             .sink { [weak self] _ in
                 self?.renderLatestSnapshot()

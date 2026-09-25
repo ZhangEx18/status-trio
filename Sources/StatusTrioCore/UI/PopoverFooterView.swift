@@ -3,10 +3,7 @@ import SwiftUI
 /// The state-dependent parts of the popover footer, kept as plain data so the
 /// settings label can be asserted without rendering a view.
 enum PopoverFooterPresentation {
-    /// The settings button carries the development codename inline, where it has
-    /// always been. The running version is deliberately not part of this label:
-    /// it is a separate element at the trailing edge of the row, so the button
-    /// stays short and readable in every language.
+    /// Keep the development codename alongside the settings label.
     static func settingsLabel(title: String, developmentSuffix: String?) -> String {
         guard let developmentSuffix, !developmentSuffix.isEmpty else { return title }
         return "\(title) · \(developmentSuffix)"
@@ -39,24 +36,18 @@ struct PopoverFooterView: View {
             .buttonStyle(.plain)
             .keyboardShortcut(",", modifiers: .command)
 
-            // The version sits at the trailing edge rather than inside the
-            // button's label, which has to stay readable in every language.
-            Text(AppMetadata.versionDisplayString)
-                .lineLimit(1)
-                .fixedSize()
-
-            Menu {
-                Button(localization.string(.menuQuit), action: quit)
-                    .keyboardShortcut("q", modifiers: .command)
-            } label: {
-                Label(localization.string(.menuMore), systemImage: "ellipsis.circle")
-                    .labelStyle(.iconOnly)
-                    .frame(width: 24, height: 24)
+            Button(action: quit) {
+                HStack(spacing: 8) {
+                    Text(localization.string(.menuQuit))
+                    Text("⌘Q").foregroundStyle(.tertiary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+                .background(.quaternary, in: Capsule())
             }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .help(localization.string(.menuMore))
+            .buttonStyle(.plain)
+            .keyboardShortcut("q", modifiers: .command)
+
         }
         .font(.callout)
         .foregroundStyle(.secondary)
