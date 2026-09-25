@@ -87,7 +87,7 @@ struct VolumeControlsView: View {
 
     private var volumeSymbolName: String {
         if volume.isMuted {
-            return "speaker.slash.fill"
+            return "speaker.slash"
         }
         guard let scalar = volume.scalar, scalar > 0 else {
             return "speaker.fill"
