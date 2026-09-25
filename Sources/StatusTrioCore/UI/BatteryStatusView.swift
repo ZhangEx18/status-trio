@@ -76,42 +76,31 @@ struct BatteryStatusView: View {
         if !battery.isPresent {
             Image(systemName: "battery.slash")
                 .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(batterySymbolColor)
+                .foregroundStyle(.secondary)
         } else {
             ZStack {
-                Image(systemName: batteryLevelSymbolName)
-                    .font(.system(size: 15, weight: .medium))
-
+                HStack(spacing: 1) {
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2).strokeBorder(.primary, lineWidth: 1.3)
+                        GeometryReader { geometry in
+                            RoundedRectangle(cornerRadius: 0.7)
+                                .fill(.primary)
+                                .frame(width: geometry.size.width * Double(battery.percentage) / 100)
+                        }
+                        .padding(2.5)
+                    }
+                    RoundedRectangle(cornerRadius: 1).fill(.primary).frame(width: 2, height: 5)
+                }
+                .frame(width: 24, height: 12)
                 if battery.isCharging {
                     Image(systemName: "bolt.fill")
-                        .font(.system(size: 8, weight: .bold))
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.primary)
+                        .shadow(color: Color(nsColor: .windowBackgroundColor), radius: 1)
                 }
             }
-            .foregroundStyle(batterySymbolColor)
+            .foregroundStyle(.primary)
         }
     }
 
-    private var batteryLevelSymbolName: String {
-        switch StatusMappings.batteryLevelBucket(battery) {
-        case .full: return "battery.100"
-        case .threeQuarter: return "battery.75"
-        case .half: return "battery.50"
-        case .quarter: return "battery.25"
-        case .empty: return "battery.0"
-        }
-    }
-
-    private var batterySymbolColor: Color {
-        guard battery.isPresent else { return .secondary }
-        if battery.isCharging || battery.isConnectedToPower {
-            return .green
-        }
-        if battery.isLowPowerMode {
-            return .yellow
-        }
-        if battery.percentage <= 20 {
-            return .red
-        }
-        return .primary
-    }
 }

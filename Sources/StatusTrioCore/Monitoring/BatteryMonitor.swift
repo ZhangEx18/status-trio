@@ -1,3 +1,4 @@
+import ChargeLimit
 import Foundation
 import IOKit.ps
 import OSLog
@@ -14,6 +15,7 @@ struct BatteryReading: Equatable {
     var isCharged: Bool = false
     var timeToFullChargeMinutes: Int? = nil
     var remainingMinutes: Int? = nil
+    var chargeLimit: Int? = nil
     var isConnectedToPower: Bool
     var isPresent: Bool
 }
@@ -47,9 +49,11 @@ final class IOPSBatteryReader: BatteryReadingProviding {
             guard
                 let description = IOPSGetPowerSourceDescription(snapshot, source)?
                     .takeUnretainedValue() as? [String: Any],
-                let reading = Self.parse(description)
+                var reading = Self.parse(description)
             else { continue }
 
+            let limit = STReadChargeLimit()
+            reading.chargeLimit = limit > 0 ? Int(limit) : nil
             return reading
         }
 
@@ -202,11 +206,13 @@ final class BatteryMonitor: BatteryMonitoring {
             let percentage = reading.maxCapacity > 0
                 ? Int((Double(reading.currentCapacity) / Double(reading.maxCapacity) * 100).rounded())
                 : reading.currentCapacity
+            let reachedLimit = reading.isConnectedToPower && !reading.isCharging
+                && reading.chargeLimit.map { percentage >= $0 } == true
             status = BatteryStatus(
                 rawPercentage: percentage,
                 isPresent: true,
                 isCharging: reading.isCharging,
-                isCharged: reading.isCharged,
+                isCharged: reading.isCharged || reachedLimit,
                 timeToFullChargeMinutes: reading.isCharging
                     ? reading.timeToFullChargeMinutes
                     : nil,

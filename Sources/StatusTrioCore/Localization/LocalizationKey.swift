@@ -1,4 +1,10 @@
 enum LocalizationKey: String, CaseIterable, Hashable, Sendable {
+    case audioRoutingTitle = "audio.routing.title"
+    case audioRoutingSingle = "audio.routing.single"
+    case audioRoutingMultiple = "audio.routing.multiple"
+    case audioRoutingSystem = "audio.routing.system"
+    case audioRoutingFollowSystem = "audio.routing.followSystem"
+    case audioRoutingSystemUnavailable = "audio.routing.systemUnavailable"
     case guideTitle = "guide.title"
     case guideOpen = "guide.open"
     case guideCustomize = "guide.customize"

@@ -378,3 +378,10 @@
 "audioApp.unavailable" = "這台 Mac 暫不支援按 App 控制音訊。";
 "audioApp.permission" = "請允許「螢幕與系統音訊錄製」權限，以控制 App 音訊。";
 "audioApp.openPermissionSettings" = "開啟權限設定";
+
+"audio.routing.title" = "音訊輸出";
+"audio.routing.single" = "單一裝置";
+"audio.routing.multiple" = "多個裝置";
+"audio.routing.system" = "系統音訊";
+"audio.routing.followSystem" = "跟隨 macOS 預設裝置";
+"audio.routing.systemUnavailable" = "多裝置模式無法使用";

@@ -12,9 +12,11 @@ let package = Package(
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.0.0")
     ],
     targets: [
+        .target(name: "ChargeLimit", path: "Sources/ChargeLimit", linkerSettings: [.linkedFramework("Foundation")]),
         .target(
             name: "StatusTrioCore",
             dependencies: [
+                "ChargeLimit",
                 .product(name: "Sparkle", package: "Sparkle")
             ],
             path: "Sources/StatusTrioCore",

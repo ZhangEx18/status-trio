@@ -378,3 +378,10 @@
 "audioApp.unavailable" = "O controle de áudio por app não está disponível neste Mac.";
 "audioApp.permission" = "Permita a gravação da tela e do áudio do sistema para controlar o áudio dos apps.";
 "audioApp.openPermissionSettings" = "Abrir ajustes de permissão";
+
+"audio.routing.title" = "Audio routing";
+"audio.routing.single" = "Single device";
+"audio.routing.multiple" = "Multiple devices";
+"audio.routing.system" = "System audio";
+"audio.routing.followSystem" = "Follow macOS default device";
+"audio.routing.systemUnavailable" = "Unavailable in multi-device mode";

@@ -378,3 +378,10 @@
 "audioApp.unavailable" = "Die App-Audiosteuerung ist auf diesem Mac nicht verfügbar.";
 "audioApp.permission" = "Erlaube Bildschirm- und Systemaudioaufnahme, um App-Audio zu steuern.";
 "audioApp.openPermissionSettings" = "Berechtigungseinstellungen öffnen";
+
+"audio.routing.title" = "Audio routing";
+"audio.routing.single" = "Single device";
+"audio.routing.multiple" = "Multiple devices";
+"audio.routing.system" = "System audio";
+"audio.routing.followSystem" = "Follow macOS default device";
+"audio.routing.systemUnavailable" = "Unavailable in multi-device mode";

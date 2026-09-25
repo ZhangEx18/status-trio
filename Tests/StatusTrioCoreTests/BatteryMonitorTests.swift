@@ -4,6 +4,22 @@ import XCTest
 
 @MainActor
 final class BatteryMonitorTests: XCTestCase {
+    func testConfiguredCeilingCountsAsFullOnlyOnPower() async {
+        for connected in [false, true] {
+            let monitor = BatteryMonitor(reader: FakeBatteryReader(result: BatteryReading(
+                currentCapacity: 95, maxCapacity: 100, isCharging: false,
+                chargeLimit: 95, isConnectedToPower: connected, isPresent: true)),
+                lowPowerModeProvider: { false })
+            monitor.refresh()
+            var iterator = monitor.updates.makeAsyncIterator()
+            let result = await iterator.next()
+            XCTAssertEqual(result?.isCharged, connected)
+            XCTAssertEqual(result?.percentage, 95)
+            XCTAssertNil(result?.timeToFullChargeMinutes)
+            monitor.stop()
+        }
+    }
+
     func testRemainingTimeIsPublishedOnlyWhileDischarging() async {
         for connected in [false, true] {
             let reader = FakeBatteryReader(result: BatteryReading(

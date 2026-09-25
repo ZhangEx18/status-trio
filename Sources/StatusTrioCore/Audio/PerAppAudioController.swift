@@ -243,6 +243,15 @@ final class PerAppAudioController: ObservableObject {
         }
     }
 
+    func setMultipleDevices(_ enabled: Bool, for app: AudioAppDescriptor) {
+        var value = settings(for: app)
+        value.usesMultipleDevices = enabled
+        settingsStore.set(value, for: app.persistenceIdentifier)
+        let uids = enabled ? value.outputDeviceUIDs : Array(value.outputDeviceUIDs.prefix(1))
+        setRouting(uids.isEmpty ? .followSystemDefault : .explicit, outputDeviceUIDs: uids, for: app)
+        objectWillChange.send()
+    }
+
     func setRouting(
         _ routing: AudioRoutingMode,
         outputDeviceUIDs: [String],

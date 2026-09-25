@@ -433,7 +433,8 @@ enum StatusIconRenderer {
            !battery.isCharged,
            let phase,
            let frame = ChargingEffectPolicy.frame(
-                progress: StatusMappings.batteryProgress(battery),
+                progress: StatusIconGeometry.batteryFillProgress(StatusMappings.batteryProgress(battery),
+                    hasTopGap: hasTopGap, topGapWidth: topGapWidth),
                 phase: phase,
                 hasTopGap: hasTopGap,
                 topGapWidth: topGapWidth

@@ -378,3 +378,10 @@
 "audioApp.unavailable" = "التحكم في صوت التطبيقات غير متاح على هذا الـ Mac.";
 "audioApp.permission" = "اسمح بتسجيل الشاشة وصوت النظام للتحكم في صوت التطبيقات.";
 "audioApp.openPermissionSettings" = "فتح إعدادات الأذونات";
+
+"audio.routing.title" = "Audio routing";
+"audio.routing.single" = "Single device";
+"audio.routing.multiple" = "Multiple devices";
+"audio.routing.system" = "System audio";
+"audio.routing.followSystem" = "Follow macOS default device";
+"audio.routing.systemUnavailable" = "Unavailable in multi-device mode";

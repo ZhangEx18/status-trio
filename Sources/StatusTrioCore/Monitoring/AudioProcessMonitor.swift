@@ -17,11 +17,12 @@ protocol AudioProcessMonitoring: AnyObject {
 }
 
 enum AudioProcessListReducer {
-    static func livingApps(_ apps: [AudioAppDescriptor], audioProcesses: [AudioAppDescriptor]) -> [AudioAppDescriptor] {
-        normalized(apps.map { app in
+    static func livingApps(_ apps: [AudioAppDescriptor], audioProcesses: [AudioAppDescriptor], knownIdentifiers: Set<String> = []) -> [AudioAppDescriptor] {
+        normalized(apps.compactMap { app in
             let processes = audioProcesses.filter {
                 $0.processID == app.processID || $0.persistenceIdentifier == app.persistenceIdentifier
             }
+            guard !processes.isEmpty || knownIdentifiers.contains(app.persistenceIdentifier) else { return nil }
             return AudioAppDescriptor(processID: app.processID,
                 processObjectIDs: Array(Set(processes.flatMap(\.processObjectIDs))).sorted(),
                 bundleIdentifier: app.bundleIdentifier, displayName: app.displayName,
@@ -61,6 +62,7 @@ enum AudioProcessListReducer {
 /// can add property listeners later without changing this value-level reader.
 @MainActor
 final class CoreAudioProcessReader: AudioProcessReading {
+    private var knownIdentifiers: Set<String> = []
     private let ownProcessID = ProcessInfo.processInfo.processIdentifier
 
     func read() -> [AudioAppDescriptor] {
@@ -71,7 +73,7 @@ final class CoreAudioProcessReader: AudioProcessReading {
 
         let processes: [AudioAppDescriptor] = processObjectIDs().compactMap { objectID in
             guard let processID = processID(for: objectID),
-                  processID != ownProcessID else {
+                  processID != ownProcessID, isRunning(for: objectID) else {
                 return nil
             }
 
@@ -108,7 +110,18 @@ final class CoreAudioProcessReader: AudioProcessReading {
                 displayName: app.localizedName ?? app.bundleIdentifier ?? "Unknown Audio App",
                 isSystemProcess: false)
         }
-        return AudioProcessListReducer.livingApps(apps, audioProcesses: processes)
+        let active = AudioProcessListReducer.livingApps(apps, audioProcesses: processes)
+        knownIdentifiers.formIntersection(Set(apps.map(\.persistenceIdentifier)))
+        knownIdentifiers.formUnion(active.map(\.persistenceIdentifier))
+        return AudioProcessListReducer.livingApps(apps, audioProcesses: processes, knownIdentifiers: knownIdentifiers)
+    }
+
+    private func isRunning(for objectID: AudioObjectID) -> Bool {
+        var address = AudioObjectPropertyAddress(mSelector: kAudioProcessPropertyIsRunning,
+            mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        var value: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        return AudioObjectGetPropertyData(objectID, &address, 0, nil, &size, &value) == noErr && value != 0
     }
 
     private func processObjectIDs() -> [AudioObjectID] {

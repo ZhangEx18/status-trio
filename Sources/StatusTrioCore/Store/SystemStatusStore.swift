@@ -597,7 +597,7 @@ final class SystemStatusStore: ObservableObject {
     func bindInputSettings(_ settings: SettingsStore) {
         guard !hasStopped else { return }
         inputSettingsCancellable = settings.$enabledPopupSections
-            .map { $0.contains(.audioInput) }
+            .map { $0.contains(.audioInput) || $0.contains(.appAudio) }
             .removeDuplicates()
             .sink { [weak self] enabled in
                 self?.setInputEnabled(enabled)
