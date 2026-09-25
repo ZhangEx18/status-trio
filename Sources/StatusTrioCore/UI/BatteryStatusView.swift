@@ -79,27 +79,32 @@ struct BatteryStatusView: View {
                 .foregroundStyle(.secondary)
         } else {
             ZStack {
-                HStack(spacing: 1) {
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 2).strokeBorder(.primary, lineWidth: 1.3)
-                        GeometryReader { geometry in
-                            RoundedRectangle(cornerRadius: 0.7)
-                                .fill(.primary)
-                                .frame(width: geometry.size.width * Double(battery.percentage) / 100)
-                        }
-                        .padding(2.5)
-                    }
-                    RoundedRectangle(cornerRadius: 1).fill(.primary).frame(width: 2, height: 5)
+                // Use the native symbol's silhouette, with continuous capacity
+                // inside its body rather than rounding to five SF Symbol levels.
+                Image(systemName: "battery.0percent")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 25, height: 13)
+                HStack(spacing: 0) {
+                    RoundedRectangle(cornerRadius: 1)
+                        .frame(width: 18 * CGFloat(battery.percentage) / 100, height: 7)
+                    Spacer(minLength: 0)
                 }
-                .frame(width: 24, height: 12)
+                .frame(width: 18, height: 7)
+                .offset(x: -1)
                 if battery.isCharging {
+                    // Knock out a border around the bolt so it stays legible
+                    // over both the filled and empty portions in either theme.
                     Image(systemName: "bolt.fill")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(.primary)
-                        .shadow(color: Color(nsColor: .windowBackgroundColor), radius: 1)
+                        .font(.system(size: 12, weight: .bold))
+                        .scaleEffect(1.3)
+                        .blendMode(.destinationOut)
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 12, weight: .bold))
                 }
             }
             .foregroundStyle(.primary)
+            .compositingGroup()
         }
     }
 
