@@ -37,12 +37,16 @@ private final class AudioTapSession: @unchecked Sendable {
     init(
         identity: AudioAppProcessIdentity,
         tapID: AudioObjectID,
-        aggregateID: AudioObjectID
+        aggregateID: AudioObjectID,
+        volume: Double,
+        isMuted: Bool
     ) {
         self.identity = identity
         self.tapID = tapID
         self.aggregateID = aggregateID
-        self.gain = 1
+        self.volume = volume
+        self.isMuted = isMuted
+        self.gain = AudioTapBufferProcessor.gain(volume: volume, muted: isMuted)
     }
 
     func process(
@@ -139,26 +143,30 @@ final class CoreAudioProcessTapManager: ProcessTapManaging {
 
     func setVolume(_ volume: Double, for app: AudioAppDescriptor) throws {
         guard isStarted else { throw PerAppAudioError.unavailable }
-        let session = try session(for: app)
+        let session = try session(for: app, initialVolume: volume, initialMuted: false)
         session.volume = volume
         session.gain = AudioTapBufferProcessor.gain(volume: volume, muted: session.isMuted)
     }
 
     func setMuted(_ isMuted: Bool, for app: AudioAppDescriptor) throws {
         guard isStarted else { throw PerAppAudioError.unavailable }
-        let session = try session(for: app)
+        let session = try session(for: app, initialVolume: PerAppAudioSettings.defaultVolume, initialMuted: isMuted)
         session.isMuted = isMuted
         session.gain = AudioTapBufferProcessor.gain(volume: session.volume, muted: isMuted)
     }
 
-    private func session(for app: AudioAppDescriptor) throws -> AudioTapSession {
+    private func session(
+        for app: AudioAppDescriptor,
+        initialVolume: Double,
+        initialMuted: Bool
+    ) throws -> AudioTapSession {
         if let existing = sessions[app.id] {
             return existing
         }
         guard !app.processObjectIDs.isEmpty else {
             throw PerAppAudioError.processUnavailable
         }
-        guard permission.status != .denied else {
+        guard permission.status == .authorized else {
             throw PerAppAudioError.permissionDenied
         }
         guard let output = outputController.outputDevices().first(where: { $0.isCurrent }),
@@ -175,8 +183,9 @@ final class CoreAudioProcessTapManager: ProcessTapManaging {
         tapDescription.muteBehavior = CATapMuteBehavior.mutedWhenTapped
 
         var tapID = AudioObjectID(kAudioObjectUnknown)
-        guard AudioHardwareCreateProcessTap(tapDescription, &tapID) == noErr else {
-            throw PerAppAudioError.unavailable
+        let tapStatus = AudioHardwareCreateProcessTap(tapDescription, &tapID)
+        guard tapStatus == noErr else {
+            throw PerAppAudioError.tapCreationFailed(tapStatus)
         }
 
         let aggregateDescription: [String: Any] = [
@@ -197,18 +206,26 @@ final class CoreAudioProcessTapManager: ProcessTapManaging {
         ]
 
         var aggregateID = AudioObjectID(kAudioObjectUnknown)
-        guard AudioHardwareCreateAggregateDevice(
+        let aggregateStatus = AudioHardwareCreateAggregateDevice(
             aggregateDescription as CFDictionary,
             &aggregateID
-        ) == noErr else {
+        )
+        guard aggregateStatus == noErr else {
             _ = AudioHardwareDestroyProcessTap(tapID)
-            throw PerAppAudioError.unavailable
+            throw PerAppAudioError.aggregateCreationFailed(aggregateStatus)
+        }
+        guard supportsFloat32InputFormat(for: aggregateID) else {
+            _ = AudioHardwareDestroyAggregateDevice(aggregateID)
+            _ = AudioHardwareDestroyProcessTap(tapID)
+            throw PerAppAudioError.unsupportedFormat
         }
 
         let session = AudioTapSession(
             identity: app.processIdentity,
             tapID: tapID,
-            aggregateID: aggregateID
+            aggregateID: aggregateID,
+            volume: initialVolume,
+            isMuted: initialMuted
         )
         var ioProcID: AudioDeviceIOProcID?
         let ioStatus = AudioDeviceCreateIOProcIDWithBlock(
@@ -232,5 +249,31 @@ final class CoreAudioProcessTapManager: ProcessTapManaging {
 
         sessions[app.id] = session
         return session
+    }
+
+    private func supportsFloat32InputFormat(for deviceID: AudioObjectID) -> Bool {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyStreamFormat,
+            mScope: kAudioObjectPropertyScopeInput,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var format = AudioStreamBasicDescription()
+        var dataSize = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
+        let status = AudioObjectGetPropertyData(
+            deviceID,
+            &address,
+            0,
+            nil,
+            &dataSize,
+            &format
+        )
+        guard status == noErr,
+              format.mFormatID == kAudioFormatLinearPCM,
+              format.mBitsPerChannel == 32,
+              format.mBytesPerFrame == format.mChannelsPerFrame * 4 else {
+            return false
+        }
+        return (format.mFormatFlags & kAudioFormatFlagIsFloat) != 0
+            && (format.mFormatFlags & kAudioFormatFlagIsPacked) != 0
     }
 }
