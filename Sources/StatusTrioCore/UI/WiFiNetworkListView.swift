@@ -16,14 +16,6 @@ struct WiFiNetworkListView: View {
         let grouped = WiFiNetworkPresentation.grouped(controller.networks)
         VStack(alignment: .leading, spacing: 12) {
             header
-            Toggle(
-                localization.string(.wifiPower),
-                isOn: Binding(
-                    get: { controller.state != .poweredOff && wifi.state != .off },
-                    set: { controller.setPower($0) }
-                )
-            )
-            .disabled(controller.state == .noInterface)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
@@ -52,18 +44,22 @@ struct WiFiNetworkListView: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            NavigationBackRow(
-                accessibilityLabel: localization.string(.commonBack),
-                title: localization.string(.wifiTitle),
-                action: onBack
+            Text(localization.string(.wifiTitle))
+                .font(.headline)
+            Spacer()
+            Toggle(
+                localization.string(.wifiPower),
+                isOn: Binding(
+                    get: { controller.state != .poweredOff && wifi.state != .off },
+                    set: { controller.setPower($0) }
+                )
             )
-            Button(action: { controller.refreshNow(nameAccess: wifi.nameAccess) }) {
-                Image(systemName: "arrow.clockwise")
-            }
-            .buttonStyle(.plain)
-            .disabled(!controller.state.allowsRefresh)
-            .accessibilityLabel(localization.string(.wifiRefresh))
+            .labelsHidden()
+            .toggleStyle(.switch)
+            .disabled(controller.state == .noInterface)
         }
+        .padding(.bottom, 8)
+        .overlay(alignment: .bottom) { Divider() }
     }
 
     @ViewBuilder
