@@ -64,9 +64,6 @@ struct VolumeControlsView: View {
                 // list below stays a normal list.
                 .background(VolumeControlScrollTarget(targets: scrollTargets))
 
-                Image(systemName: "speaker.wave.3.fill")
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
             }
 
             if volume.outputDevices.count > 1 {

@@ -38,8 +38,7 @@ struct PopoverFooterView: View {
 
             Button(action: quit) {
                 HStack(spacing: 8) {
-                    Text(localization.string(.menuQuit))
-                    Text("⌘Q").foregroundStyle(.tertiary)
+                    Text(localization.resolvedLanguage == .simplifiedChinese ? "退出 cmdQ" : localization.string(.menuQuit))
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 5)

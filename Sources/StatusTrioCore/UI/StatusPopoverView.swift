@@ -380,7 +380,8 @@ struct StatusPopoverView: View {
             BatteryStatusView(
                 battery: store.popupSnapshot.battery,
                 onOpenBatteryDetails: { panel = .battery },
-                onOpenBatterySettings: openBatterySettings
+                onOpenBatterySettings: openBatterySettings,
+                onToggleLowPowerMode: { store.toggleLowPowerMode() }
             )
         case .network:
             NetworkStatusView(
@@ -400,7 +401,8 @@ struct StatusPopoverView: View {
                 onRequestNameAccess: requestWiFiNameAccess,
                 onOpenWiFiSettings: openWiFiSettings,
                 onOpenNetworkSettings: openNetworkSettings,
-                onOpenLocationSettings: openLocationSettings
+                onOpenLocationSettings: openLocationSettings,
+                onToggleWiFiPower: { store.toggleWiFiPower() }
             )
         case .vpn:
             VPNStatusView(vpn: store.vpnStatus)
@@ -411,7 +413,8 @@ struct StatusPopoverView: View {
                 listOptions: settings.bluetoothDeviceListOptions,
                 onRequestAuthorization: requestBluetoothAuthorization,
                 onOpenBluetoothSettings: openBluetoothSettings,
-                onOpenBluetoothPermissionSettings: openBluetoothPermissionSettings
+                onOpenBluetoothPermissionSettings: openBluetoothPermissionSettings,
+                onToggleBluetooth: { store.toggleBluetoothEnabled() }
             )
         case .volume:
             VolumeControlsView(

@@ -19,6 +19,7 @@ struct BluetoothStatusView: View {
     let onRequestAuthorization: () -> Void
     let onOpenBluetoothSettings: () -> Void
     let onOpenBluetoothPermissionSettings: () -> Void
+    var onToggleBluetooth: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -116,8 +117,12 @@ struct BluetoothStatusView: View {
 
     private var titleContent: some View {
         HStack(spacing: BluetoothPanelMetrics.iconTextSpacing) {
-            BluetoothIcon(size: BluetoothPanelMetrics.iconColumnWidth)
-                .foregroundStyle(.secondary)
+            Button(action: onToggleBluetooth) {
+                BluetoothIcon(size: BluetoothPanelMetrics.iconColumnWidth)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Toggle Bluetooth")
             VStack(alignment: .leading, spacing: 2) {
                 Text(localization.string(.bluetoothTitle))
                     .font(.headline)
@@ -262,4 +267,3 @@ struct BluetoothStatusView: View {
         }
     }
 }
-

@@ -2,6 +2,10 @@ import AppKit
 import AudioToolbox
 import Combine
 import Foundation
+import CoreWLAN
+import OSLog
+
+private let statusStoreLogger = Logger(subsystem: "com.lingsmbp.StatusTrio", category: "status-store")
 
 @MainActor
 final class SystemStatusStore: ObservableObject {
@@ -409,6 +413,30 @@ final class SystemStatusStore: ObservableObject {
         return wifiMonitor.requestNameAccess()
     }
 
+    func toggleWiFiPower() {
+        guard !hasStopped, let interface = CWWiFiClient.shared().interface() else { return }
+        do {
+            try interface.setPower(!interface.powerOn())
+            wifiMonitor.refresh()
+        } catch {
+            statusStoreLogger.error("Wi-Fi toggle failed: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    func toggleLowPowerMode() {
+        guard !hasStopped else { return }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
+        process.arguments = ["-a", "lowpowermode", ProcessInfo.processInfo.isLowPowerModeEnabled ? "0" : "1"]
+        do {
+            try process.run()
+            process.waitUntilExit()
+            batteryMonitor.refresh()
+        } catch {
+            statusStoreLogger.error("Low Power Mode toggle failed: \(String(describing: error), privacy: .public)")
+        }
+    }
+
     func requestBluetoothAuthorization() {
         setBluetoothEnabled(true)
     }
@@ -440,6 +468,10 @@ final class SystemStatusStore: ObservableObject {
         } else {
             bluetoothDevices.deactivate()
         }
+    }
+
+    func toggleBluetoothEnabled() {
+        setBluetoothEnabled(!isBluetoothEnabled)
     }
 
     // The popover's Bluetooth surface claim is spelled once, next to the type

@@ -7,14 +7,19 @@ struct BatteryStatusView: View {
     let battery: BatteryStatus
     let onOpenBatteryDetails: () -> Void
     let onOpenBatterySettings: () -> Void
+    var onToggleLowPowerMode: () -> Void = {}
 
     var body: some View {
         HStack(spacing: 10) {
+            Button(action: onToggleLowPowerMode) {
+                batteryIcon.frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
+            .disabled(!battery.isPresent)
+            .accessibilityLabel("Toggle Low Power Mode")
+
             Button(action: onOpenBatteryDetails) {
                 HStack(spacing: 10) {
-                    batteryIcon
-                        .frame(width: 24, height: 24)
-                        .accessibilityHidden(true)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(StatusPresentation.batteryTitle(battery, localization: localization))

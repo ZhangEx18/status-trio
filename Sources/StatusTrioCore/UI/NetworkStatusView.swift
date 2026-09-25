@@ -21,6 +21,7 @@ struct NetworkStatusView: View {
     let onOpenWiFiSettings: () -> Void
     let onOpenNetworkSettings: () -> Void
     let onOpenLocationSettings: () -> Void
+    var onToggleWiFiPower: () -> Void = {}
 
     var body: some View {
         if connection == .ethernet {
@@ -39,6 +40,7 @@ struct NetworkStatusView: View {
                 onRequestNameAccess: onRequestNameAccess,
                 onOpenWiFiSettings: onOpenWiFiSettings,
                 onOpenLocationSettings: onOpenLocationSettings
+                ,onToggleWiFiPower: onToggleWiFiPower
             )
         }
     }
