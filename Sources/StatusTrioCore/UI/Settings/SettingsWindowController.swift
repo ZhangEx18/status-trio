@@ -17,6 +17,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     /// permission decision (`.notDetermined` → granted/denied), never on launch
     /// or on a no-op refresh of an already-granted app.
     private var lastBluetoothAuthorization: BluetoothAuthorizationStatus = .notDetermined
+    private var isClosingWindow = false
 
     init(
         store: SettingsStore,
@@ -63,6 +64,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     func show() {
         let window = window ?? makeWindow()
         self.window = window
+        isClosingWindow = false
         statusStore.setSettingsVisible(true)
         applyLocalization()
         enterActivationPolicyIfNeeded()
@@ -72,6 +74,8 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
+        guard !isClosingWindow else { return }
+        isClosingWindow = true
         statusStore.setSettingsVisible(false)
         leaveActivationPolicyIfNeeded()
         window = nil
@@ -120,7 +124,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
         window.contentView = NSHostingView(rootView: rootView)
         window.delegate = self
-        window.isReleasedWhenClosed = true
+        window.isReleasedWhenClosed = false
         window.isMovableByWindowBackground = true
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
