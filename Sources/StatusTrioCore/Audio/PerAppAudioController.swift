@@ -1,3 +1,4 @@
+import AudioToolbox
 import Combine
 import Foundation
 
@@ -7,6 +8,10 @@ enum PerAppAudioError: Error, Equatable, Sendable {
     case permissionDenied
     case unsupported
     case processUnavailable
+    case tapCreationFailed(OSStatus)
+    case aggregateCreationFailed(OSStatus)
+    case unsupportedFormat
+    case streamUsageConfigurationFailed(OSStatus)
     case unavailable
 }
 

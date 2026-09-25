@@ -77,7 +77,9 @@ struct AppAudioStatusView: View {
         switch error {
         case .permissionDenied:
             localization.string(.audioAppPermission)
-        case .unsupported, .processUnavailable, .unavailable:
+        case .unsupported, .processUnavailable, .tapCreationFailed,
+             .aggregateCreationFailed, .unsupportedFormat,
+             .streamUsageConfigurationFailed, .unavailable:
             localization.string(.audioAppUnavailable)
         }
     }
