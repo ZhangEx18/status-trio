@@ -29,6 +29,7 @@ private final class AudioTapSession: @unchecked Sendable {
     let identity: AudioAppProcessIdentity
     let tapID: AudioObjectID
     let aggregateID: AudioObjectID
+    let outputDeviceUID: String
     var ioProcID: AudioDeviceIOProcID?
     nonisolated(unsafe) var gain: Float
     nonisolated(unsafe) var volume: Double = PerAppAudioSettings.defaultVolume
@@ -38,12 +39,14 @@ private final class AudioTapSession: @unchecked Sendable {
         identity: AudioAppProcessIdentity,
         tapID: AudioObjectID,
         aggregateID: AudioObjectID,
+        outputDeviceUID: String,
         volume: Double,
         isMuted: Bool
     ) {
         self.identity = identity
         self.tapID = tapID
         self.aggregateID = aggregateID
+        self.outputDeviceUID = outputDeviceUID
         self.volume = volume
         self.isMuted = isMuted
         self.gain = AudioTapBufferProcessor.gain(volume: volume, muted: isMuted)
@@ -143,22 +146,39 @@ final class CoreAudioProcessTapManager: ProcessTapManaging {
 
     func setVolume(_ volume: Double, for app: AudioAppDescriptor) throws {
         guard isStarted else { throw PerAppAudioError.unavailable }
-        let session = try session(for: app, initialVolume: volume, initialMuted: false)
+        let session = try session(for: app, initialVolume: volume, initialMuted: false, outputDeviceUID: nil)
         session.volume = volume
         session.gain = AudioTapBufferProcessor.gain(volume: volume, muted: session.isMuted)
     }
 
     func setMuted(_ isMuted: Bool, for app: AudioAppDescriptor) throws {
         guard isStarted else { throw PerAppAudioError.unavailable }
-        let session = try session(for: app, initialVolume: PerAppAudioSettings.defaultVolume, initialMuted: isMuted)
+        let session = try session(for: app, initialVolume: PerAppAudioSettings.defaultVolume, initialMuted: isMuted, outputDeviceUID: nil)
         session.isMuted = isMuted
         session.gain = AudioTapBufferProcessor.gain(volume: session.volume, muted: isMuted)
+    }
+
+    func setRouting(
+        _ routing: AudioRoutingMode,
+        outputDeviceUIDs: [String],
+        for app: AudioAppDescriptor
+    ) throws {
+        guard isStarted else { throw PerAppAudioError.unavailable }
+        sessions[app.id]?.stop()
+        sessions.removeValue(forKey: app.id)
+        _ = try session(
+            for: app,
+            initialVolume: PerAppAudioSettings.defaultVolume,
+            initialMuted: false,
+            outputDeviceUID: routing == .explicit ? outputDeviceUIDs.first : nil
+        )
     }
 
     private func session(
         for app: AudioAppDescriptor,
         initialVolume: Double,
-        initialMuted: Bool
+        initialMuted: Bool,
+        outputDeviceUID: String?
     ) throws -> AudioTapSession {
         if let existing = sessions[app.id] {
             return existing
@@ -169,8 +189,17 @@ final class CoreAudioProcessTapManager: ProcessTapManaging {
         guard permission.status == .authorized else {
             throw PerAppAudioError.permissionDenied
         }
-        guard let output = outputController.outputDevices().first(where: { $0.isCurrent }),
-              let outputUID = output.uid else {
+        let outputDevices = outputController.outputDevices()
+        let outputUID: String
+        if let outputDeviceUID {
+            guard outputDevices.contains(where: { $0.uid == outputDeviceUID }) else {
+                throw PerAppAudioError.processUnavailable
+            }
+            outputUID = outputDeviceUID
+        } else if let current = outputDevices.first(where: { $0.isCurrent }),
+                  let currentUID = current.uid {
+            outputUID = currentUID
+        } else {
             throw PerAppAudioError.processUnavailable
         }
 
@@ -224,6 +253,7 @@ final class CoreAudioProcessTapManager: ProcessTapManaging {
             identity: app.processIdentity,
             tapID: tapID,
             aggregateID: aggregateID,
+            outputDeviceUID: outputUID,
             volume: initialVolume,
             isMuted: initialMuted
         )

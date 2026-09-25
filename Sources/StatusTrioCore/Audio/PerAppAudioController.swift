@@ -22,6 +22,11 @@ protocol ProcessTapManaging: AnyObject {
     func stop()
     func setVolume(_ volume: Double, for app: AudioAppDescriptor) throws
     func setMuted(_ isMuted: Bool, for app: AudioAppDescriptor) throws
+    func setRouting(
+        _ routing: AudioRoutingMode,
+        outputDeviceUIDs: [String],
+        for app: AudioAppDescriptor
+    ) throws
 }
 
 /// Temporary boundary for the first vertical slice. The real Core Audio tap
@@ -38,6 +43,14 @@ final class UnsupportedProcessTapManager: ProcessTapManaging {
     }
 
     func setMuted(_ isMuted: Bool, for app: AudioAppDescriptor) throws {
+        throw PerAppAudioError.unsupported
+    }
+
+    func setRouting(
+        _ routing: AudioRoutingMode,
+        outputDeviceUIDs: [String],
+        for app: AudioAppDescriptor
+    ) throws {
         throw PerAppAudioError.unsupported
     }
 }
@@ -121,6 +134,15 @@ final class PerAppAudioController: ObservableObject {
                 self.tapManager.updateApps(apps)
                 for app in apps {
                     let settings = self.settings(for: app)
+                    if settings.routing == .explicit {
+                        self.apply {
+                            try self.tapManager.setRouting(
+                                settings.routing,
+                                outputDeviceUIDs: settings.outputDeviceUIDs,
+                                for: app
+                            )
+                        }
+                    }
                     if settings.volume != PerAppAudioSettings.defaultVolume {
                         self.apply {
                             try self.tapManager.setVolume(settings.volume, for: app)
@@ -180,6 +202,25 @@ final class PerAppAudioController: ObservableObject {
         settingsStore.set(settings, for: app.persistenceIdentifier)
         apply {
             try tapManager.setMuted(isMuted, for: app)
+        }
+    }
+
+    func setRouting(
+        _ routing: AudioRoutingMode,
+        outputDeviceUIDs: [String],
+        for app: AudioAppDescriptor
+    ) {
+        var settings = settings(for: app)
+        settings.routing = routing
+        settings.outputDeviceUIDs = outputDeviceUIDs
+        settings.normalize()
+        settingsStore.set(settings, for: app.persistenceIdentifier)
+        apply {
+            try tapManager.setRouting(
+                settings.routing,
+                outputDeviceUIDs: settings.outputDeviceUIDs,
+                for: app
+            )
         }
     }
 
