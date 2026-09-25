@@ -43,7 +43,7 @@ private final class AudioWorkspaceListenerToken: @unchecked Sendable {
 @MainActor
 final class CoreAudioProcessChangeObserver: AudioProcessChangeObserving {
     private var listListener: AudioProcessListenerToken?
-    private var processListeners: [AudioObjectID: AudioProcessListenerToken] = [:]
+    private var processListeners: [String: AudioProcessListenerToken] = [:]
     private var workspaceListeners: [AudioWorkspaceListenerToken] = []
     private var onChange: (@MainActor () -> Void)?
 
@@ -91,12 +91,21 @@ final class CoreAudioProcessChangeObserver: AudioProcessChangeObserving {
             objects = Array(objects.prefix(Int(size) / MemoryLayout<AudioObjectID>.stride))
         }
         let current = Set(objects)
-        processListeners = processListeners.filter { current.contains($0.key) }
-        for objectID in current where processListeners[objectID] == nil {
-            processListeners[objectID] = AudioProcessListenerToken(objectID: objectID,
-                selector: kAudioProcessPropertyIsRunningOutput) { [weak self] _, _ in
-                    Task { @MainActor [weak self] in self?.changed() }
-                }
+        processListeners = processListeners.filter { key, _ in
+            guard let separator = key.firstIndex(of: ":"),
+                  let rawID = UInt32(key[..<separator]) else { return false }
+            let objectID = AudioObjectID(rawID)
+            return current.contains(objectID)
+        }
+        for objectID in current {
+            for selector in [kAudioProcessPropertyIsRunning, kAudioProcessPropertyIsRunningOutput] {
+                let key = "\(objectID):\(selector)"
+                guard processListeners[key] == nil else { continue }
+                processListeners[key] = AudioProcessListenerToken(objectID: objectID,
+                    selector: selector) { [weak self] _, _ in
+                        Task { @MainActor [weak self] in self?.changed() }
+                    }
+            }
         }
     }
 }
