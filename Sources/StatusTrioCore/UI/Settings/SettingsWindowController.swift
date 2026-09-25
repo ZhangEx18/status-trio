@@ -86,7 +86,6 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
     func windowDidClose(_ notification: Notification) {
         settingsWindowLogger.info("Settings window did close")
-        window = nil
     }
 
     /// Brings Settings back to the front after a system dialog (such as the

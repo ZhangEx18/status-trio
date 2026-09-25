@@ -355,24 +355,30 @@ struct AudioInputControlsView: View {
             )
 
             ZStack {
-                Slider(
-                    value: sliderValue,
-                    in: 0...1,
-                    onEditingChanged: { editing in
-                        if !editing {
-                            volumeDraft.receiveSystemScalar(status.scalar)
+                if presentation.volumeEnabled {
+                    Slider(
+                        value: sliderValue,
+                        in: 0...1,
+                        onEditingChanged: { editing in
+                            if !editing {
+                                volumeDraft.receiveSystemScalar(status.scalar)
+                            }
+                            volumeDraft.setEditing(editing)
                         }
-                        volumeDraft.setEditing(editing)
-                    }
-                )
-                .tint(status.muteState == .muted ? Color.secondary : Color.accentColor)
-                .disabled(!presentation.volumeEnabled)
-                .help(volumeControlHint)
-                .accessibilityLabel(localization.string(.audioInputVolume))
-                .accessibilityValue(sliderAccessibilityValue)
-                .accessibilityHint(
-                    presentation.volumeEnabled ? "" : localization.string(.audioInputVolumeUnavailable)
-                )
+                    )
+                    .tint(status.muteState == .muted ? Color.secondary : Color.accentColor)
+                    .help(volumeControlHint)
+                    .accessibilityLabel(localization.string(.audioInputVolume))
+                    .accessibilityValue(sliderAccessibilityValue)
+                } else {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.secondary.opacity(0.18))
+                        .frame(height: 6)
+                        .help(volumeControlHint)
+                        .accessibilityLabel(localization.string(.audioInputVolume))
+                        .accessibilityValue("—")
+                        .accessibilityHint(localization.string(.audioInputVolumeUnavailable))
+                }
 
                 if !presentation.hasReadableVolume {
                     Text("—")
