@@ -60,6 +60,25 @@ final class WirelessListModelsTests: XCTestCase {
         XCTAssertEqual(network.connectedBSSID, "02")
     }
 
+    func testWiFiMergePreservesPreferredFrequencyBand() {
+        let network = WiFiNetwork.merge(
+            [
+                WiFiNetworkCandidate(
+                    ssid: "Office",
+                    bssid: "01",
+                    rssi: -56,
+                    channel: 44,
+                    band: .fiveGHz,
+                    security: .wpa2Personal
+                )
+            ],
+            connectedBSSID: nil
+        )[0]
+
+        XCTAssertEqual(network.band, .fiveGHz)
+        XCTAssertEqual(network.rssi, -56)
+    }
+
     func testWiFiGroupingSeparatesKnownAndUnknownScannedNetworks() {
         let candidates = [
             WiFiNetworkCandidate(ssid: "Home", bssid: "01", rssi: -40, channel: 1, security: .wpa2Personal),

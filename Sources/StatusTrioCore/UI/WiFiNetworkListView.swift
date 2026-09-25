@@ -149,12 +149,24 @@ struct WiFiNetworkListView: View {
             }
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: network.isConnected ? "checkmark" : "wifi")
-                    .frame(width: 16)
-                    .foregroundStyle(network.isConnected ? Color.accentColor : Color.secondary)
-                Text(displaySSID(network.ssid))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                networkIcon(for: network)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(displaySSID(network.ssid))
+                        .font(.body.weight(network.isConnected ? .semibold : .medium))
+                        .foregroundStyle(network.isConnected ? Color.primary : Color.primary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+
+                    if !network.isConnected, let metadata = networkMetadata(for: network) {
+                        Text(metadata)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
                 Spacer(minLength: 8)
                 if network.security.requiresPassword {
                     Image(systemName: "lock.fill")
@@ -162,9 +174,14 @@ struct WiFiNetworkListView: View {
                         .foregroundStyle(.secondary)
                         .accessibilityHidden(true)
                 }
-                networkSignalIcon(for: network.rssi)
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
+            }
+            .padding(.horizontal, network.isConnected ? 8 : 0)
+            .padding(.vertical, 6)
+            .background {
+                if network.isConnected {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.accentColor.opacity(0.18))
+                }
             }
             .contentShape(Rectangle())
         }
@@ -172,22 +189,52 @@ struct WiFiNetworkListView: View {
         .accessibilityLabel(networkAccessibilityLabel(network))
     }
 
-    private func displaySSID(_ ssid: String) -> String {
-        ssid.isEmpty ? localization.string(.wifiHiddenNetwork) : ssid
-    }
-
     @ViewBuilder
-    private func networkSignalIcon(for rssi: Int?) -> some View {
-        if let rssi {
-            let bars = StatusMappings.wifiBars(rssi: rssi)
-            if bars == 0 {
-                Image(systemName: "wifi.exclamationmark")
-            } else {
-                Image(systemName: "wifi", variableValue: max(0.25, Double(bars) / 3.0))
-            }
+    private func networkIcon(for network: WiFiNetwork) -> some View {
+        if network.isConnected {
+            Image(systemName: "wifi")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 32, height: 32)
+                .background(Circle().fill(Color.accentColor))
+        } else if let rssi = network.rssi {
+            Image(systemName: "wifi", variableValue: max(0.25, Double(StatusMappings.wifiBars(rssi: rssi)) / 3.0))
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 32, height: 32)
         } else {
             Image(systemName: "wifi.exclamationmark")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 32, height: 32)
         }
+    }
+
+    private func networkMetadata(for network: WiFiNetwork) -> String? {
+        let band = network.band.map {
+            $0.gigahertz.formatted(
+                .number.precision(.fractionLength($0 == .twoPointFourGHz ? 1 : 0))
+                    .locale(localization.resolvedLanguage.locale)
+            )
+        }.map { localization.format(.wifiSummaryBand, $0) }
+        let signal = network.rssi.map {
+            localization.format(.wifiSummarySignal, $0)
+        }
+
+        switch (band, signal) {
+        case let (band?, signal?):
+            return localization.format(.wifiSummaryBandAndSignal, band, signal)
+        case let (band?, nil):
+            return band
+        case let (nil, signal?):
+            return signal
+        case (nil, nil):
+            return nil
+        }
+    }
+
+    private func displaySSID(_ ssid: String) -> String {
+        ssid.isEmpty ? localization.string(.wifiHiddenNetwork) : ssid
     }
 
     private func networkAccessibilityLabel(_ network: WiFiNetwork) -> String {
