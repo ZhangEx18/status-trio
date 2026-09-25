@@ -263,6 +263,8 @@ final class AudioInputMonitor: AudioInputMonitoring {
       return
     }
     clearPendingScalar()
+    // Keep only the latest selection while a HAL operation is in flight.
+    queuedCommands.removeAll { if case .select = $0.command { return true }; return false }
     enqueueOrStart(QueuedCommand(command: .select(id), deviceID: id))
   }
 

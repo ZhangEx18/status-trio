@@ -12,6 +12,15 @@ enum AudioBoostPreset: String, Codable, CaseIterable, Sendable {
     case threeX
     case fourX
 
+    var next: Self {
+        switch self {
+        case .normal: .twoX
+        case .twoX: .threeX
+        case .threeX: .fourX
+        case .fourX: .normal
+        }
+    }
+
     var multiplier: Double {
         switch self {
         case .normal: 1
@@ -66,6 +75,7 @@ struct PerAppAudioSettings: Codable, Equatable, Sendable {
     var level: Double?
     var boost: AudioBoostPreset
     var isMuted: Bool
+    var usesMultipleDevices: Bool = false
     var routing: AudioRoutingMode
     var outputDeviceUIDs: [String]
 
@@ -116,7 +126,7 @@ struct PerAppAudioSettings: Codable, Equatable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case volume, level, boost, isMuted, routing, outputDeviceUIDs
+        case volume, level, boost, isMuted, routing, outputDeviceUIDs, usesMultipleDevices
     }
 
     init(from decoder: Decoder) throws {
@@ -127,6 +137,7 @@ struct PerAppAudioSettings: Codable, Equatable, Sendable {
         isMuted = try values.decodeIfPresent(Bool.self, forKey: .isMuted) ?? false
         routing = try values.decodeIfPresent(AudioRoutingMode.self, forKey: .routing) ?? .followSystemDefault
         outputDeviceUIDs = try values.decodeIfPresent([String].self, forKey: .outputDeviceUIDs) ?? []
+        usesMultipleDevices = try values.decodeIfPresent(Bool.self, forKey: .usesMultipleDevices) ?? (outputDeviceUIDs.count > 1)
         normalize()
     }
 }

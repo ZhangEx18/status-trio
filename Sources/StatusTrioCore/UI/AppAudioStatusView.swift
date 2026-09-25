@@ -66,7 +66,14 @@ struct AppAudioStatusView: View {
                 Text(app.displayName)
                     .font(.body.weight(.medium))
                     .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(width: 65, alignment: .leading)
+
+                Slider(value: Binding(get: { controller.level(for: app) },
+                    set: { controller.setLevel($0, for: app) }), in: 0...1)
+                    .accessibilityLabel(localization.string(.volumeAccessibilityLabel))
+                Text(controller.level(for: app).formatted(.percent.precision(.fractionLength(0))))
+                    .font(.caption.monospacedDigit())
+                    .frame(width: 32, alignment: .trailing)
 
                 Button {
                     controller.setMuted(!appSettings.isMuted, for: app)
@@ -80,38 +87,26 @@ struct AppAudioStatusView: View {
                     )
                     )
 
-                Menu {
-                    ForEach(AudioBoostPreset.allCases, id: \.self) { boost in
-                        Button {
-                            controller.setBoost(boost, for: app)
-                        } label: {
-                            if boost == appSettings.boost {
-                                Label(boostTitle(boost), systemImage: "checkmark")
-                            } else {
-                                Text(boostTitle(boost))
-                            }
+                Button { controller.setBoost(appSettings.boost.next, for: app) } label: {
+                    VStack(spacing: -3) {
+                        ForEach((0..<3).reversed(), id: \.self) { index in
+                            Image(systemName: "chevron.compact.up")
+                                .font(.system(size: 12, weight: .heavy))
+                                .foregroundStyle(index < Int(appSettings.boost.multiplier) - 1
+                                    ? Color.accentColor : Color.primary.opacity(0.18))
                         }
+                        .frame(width: 22, height: 28)
+                        .contentShape(Rectangle())
                     }
-                } label: {
-                    Image(systemName: "arrow.up.forward")
                 }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .buttonStyle(.plain)
-                .help(boostTitle(appSettings.boost))
+                    .buttonStyle(.plain)
+                    .help(boostTitle(appSettings.boost))
+                    .accessibilityLabel(boostTitle(appSettings.boost))
 
                 routingMenu(for: app)
             }
 
-            Slider(
-                value: Binding(
-                    get: { controller.level(for: app) },
-                    set: { controller.setLevel($0, for: app) }
-                ),
-                in: 0...1
-            )
-            .accessibilityLabel(localization.string(.volumeAccessibilityLabel))
-            .accessibilityValue("\(Int(controller.level(for: app) * 100))%")
+
         }
     }
 
@@ -126,62 +121,8 @@ struct AppAudioStatusView: View {
             .frame(width: 24, height: 24)
     }
 
-    @ViewBuilder
     private func routingMenu(for app: AudioAppDescriptor) -> some View {
-        Menu {
-            Button(localization.string(.volumeOutputTitle)) {
-                controller.setRouting(.followSystemDefault, outputDeviceUIDs: [], for: app)
-            }
-            if !outputDevices.isEmpty {
-                Divider()
-                ForEach(outputDevices) { device in
-                    if let uid = device.uid {
-                        Toggle(
-                            device.name ?? localization.string(.volumeOutputUnknownDevice),
-                            isOn: Binding(
-                                get: {
-                                    controller.settings(for: app).outputDeviceUIDs.contains(uid)
-                                },
-                                set: { selected in
-                                    updateRouteSelection(
-                                        selected: selected,
-                                        uid: uid,
-                                        for: app
-                                    )
-                                }
-                            )
-                        )
-                    }
-                }
-            }
-        } label: {
-            Image(systemName: "globe")
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .buttonStyle(.plain)
-        .help(localization.string(.volumeOutputTitle))
-    }
-
-    private func updateRouteSelection(
-        selected: Bool,
-        uid: String,
-        for app: AudioAppDescriptor
-    ) {
-        var selectedUIDs = controller.settings(for: app).outputDeviceUIDs
-        if selected {
-            if !selectedUIDs.contains(uid) {
-                selectedUIDs.append(uid)
-            }
-        } else {
-            selectedUIDs.removeAll { $0 == uid }
-        }
-
-        if selectedUIDs.isEmpty {
-            controller.setRouting(.followSystemDefault, outputDeviceUIDs: [], for: app)
-        } else {
-            controller.setRouting(.explicit, outputDeviceUIDs: selectedUIDs, for: app)
-        }
+        AppAudioRoutingView(controller: controller, app: app, devices: outputDevices)
     }
 
     private func boostTitle(_ boost: AudioBoostPreset) -> String {

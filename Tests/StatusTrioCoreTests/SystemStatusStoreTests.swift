@@ -42,6 +42,19 @@ final class SystemStatusStoreTests: XCTestCase {
         store.stop()
     }
 
+    func testUnifiedAudioPanelEnablesInputMonitoring() {
+        let input = FakeAudioInputMonitor()
+        let suite = makeSuite()
+        defer { suite.defaults.removeTestSuite(named: suite.name) }
+        let settings = SettingsStore(defaults: suite.defaults)
+        let store = SystemStatusStore(batteryMonitor: FakeBatteryMonitor(),
+            wifiMonitor: FakeWiFiMonitor(), volumeMonitor: FakeVolumeMonitor(), inputMonitor: input)
+        store.bindInputSettings(settings)
+        store.start()
+        XCTAssertEqual(input.enabledValues.last, true)
+        store.stop()
+    }
+
     func testInputMonitorFollowsOptInSettingAndPopoverVisibility() async {
         let battery = FakeBatteryMonitor()
         let wifi = FakeWiFiMonitor()
@@ -51,6 +64,7 @@ final class SystemStatusStoreTests: XCTestCase {
         let suite = makeSuite()
         defer { suite.defaults.removeTestSuite(named: suite.name) }
         let settings = SettingsStore(defaults: suite.defaults)
+        settings.setPopupSection(.appAudio, enabled: false)
         let store = SystemStatusStore(
             batteryMonitor: battery,
             wifiMonitor: wifi,
@@ -185,6 +199,7 @@ final class SystemStatusStoreTests: XCTestCase {
         let suite = makeSuite()
         defer { suite.defaults.removeTestSuite(named: suite.name) }
         let settings = SettingsStore(defaults: suite.defaults)
+        settings.setPopupSection(.appAudio, enabled: false)
         let store = makeStore(
             battery: battery,
             wifi: wifi,

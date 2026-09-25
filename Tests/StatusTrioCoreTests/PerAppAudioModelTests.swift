@@ -2,6 +2,13 @@ import XCTest
 @testable import StatusTrioCore
 
 final class PerAppAudioModelTests: XCTestCase {
+    func testBoostCyclesAllFourLevels() {
+        XCTAssertEqual(AudioBoostPreset.normal.next, .twoX)
+        XCTAssertEqual(AudioBoostPreset.twoX.next, .threeX)
+        XCTAssertEqual(AudioBoostPreset.threeX.next, .fourX)
+        XCTAssertEqual(AudioBoostPreset.fourX.next, .normal)
+    }
+
     func testAudioAppDescriptorUsesBundleIDAsStableIdentity() {
         let app = AudioAppDescriptor(
             processID: 42,

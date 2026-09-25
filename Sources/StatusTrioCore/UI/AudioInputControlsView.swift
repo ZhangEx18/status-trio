@@ -18,12 +18,6 @@ struct AudioInputPresentation {
         unknownName: String
     ) -> [AudioInputDevice] {
         devices.sorted { lhs, rhs in
-            let lhsIsCurrent = lhs.id == currentID
-            let rhsIsCurrent = rhs.id == currentID
-            if lhsIsCurrent != rhsIsCurrent {
-                return lhsIsCurrent
-            }
-
             let comparison = displayName(for: lhs, unknownName: unknownName)
                 .compare(
                     displayName(for: rhs, unknownName: unknownName),
@@ -202,6 +196,7 @@ struct AudioInputControlsView: View {
     let onScalarChange: (Double) -> Void
     let onToggleMute: () -> Void
     let onOpenSoundSettings: () -> Void
+    var compact = false
 
     @State private var volumeDraft = AudioInputVolumeDraft()
 
@@ -259,8 +254,10 @@ struct AudioInputControlsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            header
-            controls
+            if !compact {
+                header
+                controls
+            }
             deviceList
 
             if let error = status.error {
@@ -426,13 +423,22 @@ struct AudioInputControlsView: View {
     @ViewBuilder
     private var deviceList: some View {
         if presentation.showsDeviceList {
-            Divider()
-                .padding(.top, 2)
+            if !compact {
+                Divider().padding(.top, 2)
+            }
 
             VStack(spacing: 2) {
-                ForEach(orderedDevices.indices, id: \.self) { index in
-                    let device = orderedDevices[index]
-                    deviceRow(device, position: index + 1)
+                ForEach(orderedDevices) { device in
+                    if compact {
+                        HStack(spacing: 8) {
+                            deviceRow(device, position: (orderedDevices.firstIndex(where: { $0.id == device.id }) ?? 0) + 1)
+                            if device.id == status.defaultDeviceID {
+                                controls.frame(width: 155)
+                            }
+                        }
+                    } else {
+                        deviceRow(device, position: (orderedDevices.firstIndex(where: { $0.id == device.id }) ?? 0) + 1)
+                    }
                 }
             }
         } else {
@@ -476,13 +482,13 @@ struct AudioInputControlsView: View {
             : localization.format(.audioInputSwitchTo, displayName)
 
         return Button {
-            guard !isCurrent else { return }
             onSelect(device.id)
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: isCurrent ? "mic.fill" : "mic")
-                    .foregroundStyle(isCurrent ? Color.accentColor : Color.secondary)
-                    .frame(width: 24, height: 24)
+                    .foregroundStyle(isCurrent ? Color.white : Color.secondary)
+                    .frame(width: 28, height: 28)
+                    .background(isCurrent ? Color.accentColor : Color.secondary.opacity(0.12), in: Circle())
                     .accessibilityHidden(true)
 
                 Text(displayName)
@@ -496,7 +502,7 @@ struct AudioInputControlsView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(status.isBusy)
+        .disabled(status.error == .timedOut)
         .help(help)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint(isCurrent ? "" : help)

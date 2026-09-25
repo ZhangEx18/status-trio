@@ -378,3 +378,10 @@
 "audioApp.unavailable" = "Управление звуком приложений недоступно на этом Mac.";
 "audioApp.permission" = "Разрешите запись экрана и системного звука, чтобы управлять звуком приложений.";
 "audioApp.openPermissionSettings" = "Открыть настройки разрешений";
+
+"audio.routing.title" = "Audio routing";
+"audio.routing.single" = "Single device";
+"audio.routing.multiple" = "Multiple devices";
+"audio.routing.system" = "System audio";
+"audio.routing.followSystem" = "Follow macOS default device";
+"audio.routing.systemUnavailable" = "Unavailable in multi-device mode";
