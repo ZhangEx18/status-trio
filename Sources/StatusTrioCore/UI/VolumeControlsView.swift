@@ -11,6 +11,8 @@ struct VolumeControlsView: View {
     let onSelectOutputDevice: (AudioOutputDevice) -> Void
     let onOpenSoundSettings: () -> Void
 
+    var onEditingChanged: (Bool) -> Void = { _ in }
+
     @State private var draftVolume = 0.0
     @State private var isAdjusting = false
 
@@ -46,7 +48,10 @@ struct VolumeControlsView: View {
                 .accessibilityLabel(volume.isMuted ? localization.string(.volumeUnmuted) : localization.string(.volumeMuted))
 
                 Slider(
-                    value: $draftVolume,
+                    value: Binding(get: { draftVolume }, set: { value in
+                        draftVolume = value
+                        updateVolume(value)
+                    }),
                     in: 0...1,
                     onEditingChanged: { handleVolumeEditing($0) }
                 )
@@ -59,9 +64,6 @@ struct VolumeControlsView: View {
                 // list below stays a normal list.
                 .background(VolumeControlScrollTarget(targets: scrollTargets))
 
-                Image(systemName: "speaker.wave.3.fill")
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
             }
 
             if volume.outputDevices.count > 1 {
@@ -75,10 +77,8 @@ struct VolumeControlsView: View {
                 )
             }
         }
+        .onDisappear { if isAdjusting { onEditingChanged(false) } }
         .onAppear(perform: { synchronizeVolume() })
-        .onChange(of: draftVolume) { _, newValue in
-            updateVolume(newValue)
-        }
         .onChange(of: volume.scalar) { _, _ in
             guard !isAdjusting else { return }
             synchronizeVolume()
@@ -87,16 +87,17 @@ struct VolumeControlsView: View {
 
     private var volumeSymbolName: String {
         if volume.isMuted {
-            return "speaker.slash.fill"
+            return "speaker.slash"
         }
-        guard let scalar = volume.scalar, scalar > 0 else {
+        let scalar = isAdjusting ? draftVolume : (volume.scalar ?? draftVolume)
+        switch scalar {
+        case ..<0.01:
             return "speaker.fill"
-        }
-        if scalar < 0.33 {
+        case ..<0.34:
             return "speaker.wave.1.fill"
-        } else if scalar < 0.66 {
+        case ..<0.67:
             return "speaker.wave.2.fill"
-        } else {
+        default:
             return "speaker.wave.3.fill"
         }
     }
@@ -111,6 +112,7 @@ struct VolumeControlsView: View {
 
     private func handleVolumeEditing(_ isEditing: Bool) {
         isAdjusting = isEditing
+        onEditingChanged(isEditing)
     }
 
     private func updateVolume(_ newValue: Double) {

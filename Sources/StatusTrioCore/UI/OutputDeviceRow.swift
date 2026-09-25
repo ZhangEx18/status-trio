@@ -38,12 +38,6 @@ struct OutputDeviceRow: View {
                         .foregroundStyle(.secondary)
                 }
 
-                if device.isCurrent {
-                    Image(systemName: "checkmark")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color.accentColor)
-                        .accessibilityHidden(true)
-                }
             }
             .padding(.vertical, 3)
             .contentShape(Rectangle())

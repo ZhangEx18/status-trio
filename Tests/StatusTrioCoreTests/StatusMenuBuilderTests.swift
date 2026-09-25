@@ -20,7 +20,7 @@ final class StatusMenuBuilderTests: XCTestCase {
             "Status Trio 1.0.0",
             "设置…",
             "",
-            "退出 Status Trio"
+            "退出 ⌘Q"
         ])
         XCTAssertFalse(versionItem.isEnabled)
         XCTAssertFalse(settingsItem.isEnabled)
@@ -81,7 +81,8 @@ final class StatusMenuBuilderTests: XCTestCase {
     }
 
     func testStatusBarUpdateCadence() {
-        XCTAssertEqual(StatusBarController.iconSnapshotDebounceInterval, 0.5)
+        XCTAssertEqual(StatusBarController.iconSnapshotThrottleInterval, 1.0 / 30.0)
+        XCTAssertEqual(StatusBarController.iconSnapshotThrottleInterval, AppIconController.snapshotThrottleInterval)
     }
 
     func testClickClassification() {

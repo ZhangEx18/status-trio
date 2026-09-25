@@ -1,7 +1,7 @@
 import CoreWLAN
 
 /// Known bands only; unknown or unavailable channels remain nil.
-enum WiFiFrequencyBand: Equatable, Sendable {
+enum WiFiFrequencyBand: Equatable, Hashable, Sendable {
     case twoPointFourGHz, fiveGHz, sixGHz
 
     init?(coreWLANBand: CWChannelBand) {

@@ -39,7 +39,7 @@ final class VPNRowSettingsTests: XCTestCase {
         let reopened = SettingsStore(defaults: suite.defaults)
         XCTAssertTrue(reopened.enabledPopupSections.contains(.vpn))
         XCTAssertTrue(reopened.enabledPopupSections.contains(.battery))
-        XCTAssertTrue(reopened.enabledPopupSections.contains(.volume))
+        XCTAssertTrue(reopened.enabledPopupSections.contains(.appAudio))
         XCTAssertFalse(reopened.enabledPopupSections.contains(.network))
     }
 

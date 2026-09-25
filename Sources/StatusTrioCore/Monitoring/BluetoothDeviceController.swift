@@ -819,7 +819,7 @@ final class BluetoothDeviceController: ObservableObject {
                 // The primary source is published first and on its own. The
                 // second source is an addition to it, never a precondition for
                 // it, so a read that never answers cannot hold the list back.
-                self.readAccessoryLevelsIfNeeded(request: request, levels: levels)
+                self.readAccessoryLevelsIfNeeded(request, levels: levels)
             }
         }
     }
@@ -833,7 +833,7 @@ final class BluetoothDeviceController: ObservableObject {
     /// is the same request token, so a merge that lands after a newer read
     /// superseded this one is dropped rather than published over it.
     private func readAccessoryLevelsIfNeeded(
-        request: UInt64,
+        _ request: UInt64,
         levels: [String: BluetoothBatteryLevel]?
     ) {
         guard let accessoryBatteryReader else { return }

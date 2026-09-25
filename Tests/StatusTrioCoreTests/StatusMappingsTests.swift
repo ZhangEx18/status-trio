@@ -78,6 +78,14 @@ final class StatusMappingsTests: XCTestCase {
         XCTAssertEqual(StatusMappings.batteryProgress(makeBattery(rawPercentage: 101)), 1.0)
     }
 
+    func testBatteryLevelBucketTracksChargingBatteryPercentage() {
+        XCTAssertEqual(StatusMappings.batteryLevelBucket(makeBattery(rawPercentage: 10)), .empty)
+        XCTAssertEqual(StatusMappings.batteryLevelBucket(makeBattery(rawPercentage: 25)), .quarter)
+        XCTAssertEqual(StatusMappings.batteryLevelBucket(makeBattery(rawPercentage: 53)), .half)
+        XCTAssertEqual(StatusMappings.batteryLevelBucket(makeBattery(rawPercentage: 80)), .threeQuarter)
+        XCTAssertEqual(StatusMappings.batteryLevelBucket(makeBattery(rawPercentage: 100)), .full)
+    }
+
     func testBatteryColorPriority() {
         let normal = BatteryStatus(
             rawPercentage: 100,

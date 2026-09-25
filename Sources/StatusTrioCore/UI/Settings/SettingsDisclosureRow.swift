@@ -42,7 +42,6 @@ struct SettingsDisclosureRow: View {
     @Binding var isExpanded: Bool
 
     @EnvironmentObject private var localization: Localization
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(
         _ symbol: String,
@@ -92,8 +91,6 @@ struct SettingsDisclosureRow: View {
     }
 
     private func toggle() {
-        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
-            isExpanded.toggle()
-        }
+        isExpanded.toggle()
     }
 }

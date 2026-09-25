@@ -20,6 +20,7 @@ final class PopoverScrollTargetsTests: XCTestCase {
                     volumeMonitor: MarkerVolumeMonitor()
                 ),
                 settings: SettingsStore(defaults: defaults),
+                perAppAudioController: PerAppAudioController(),
                 scrollTargets: targets,
                 requestWiFiNameAccess: {},
                 requestBluetoothAuthorization: {},

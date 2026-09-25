@@ -144,6 +144,7 @@ private final class CoreWLANNetworkWorker: @unchecked Sendable, WiFiNetworkScann
             bssid: network.bssid,
             rssi: normalizedMeasurement(network.rssiValue),
             channel: network.wlanChannel?.channelNumber,
+            band: network.wlanChannel.flatMap { WiFiFrequencyBand(coreWLANBand: $0.channelBand) },
             security: securityKind(for: network)
         )
     }

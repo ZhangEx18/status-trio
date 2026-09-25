@@ -15,6 +15,16 @@ final class BatteryPopoverPanelTests: XCTestCase {
         BatteryStatusView(battery: battery, onOpenBatteryDetails: {}, onOpenBatterySettings: {})
     }
 
+    func testPowerBoltRemainsVisibleAtChargeLimitAndDisappearsWhenUnplugged() {
+        for connected in [true, false] {
+            let status = BatteryStatus(rawPercentage: 95, isPresent: true, isCharging: false,
+                isCharged: connected, chargeLimit: 95, isLowPowerMode: false,
+                isConnectedToPower: connected)
+            XCTAssertEqual(summary(status).showsPowerBolt, connected)
+        }
+        XCTAssertFalse(summary(battery(isPresent: false)).showsPowerBolt)
+    }
+
     /// A Mac without a battery has nothing to show, so the row stays inert —
     /// the same shape as an unavailable Bluetooth radio.
     func testBatterySummaryOnlyOffersDetailsWhenTheBatteryIsPresent() {

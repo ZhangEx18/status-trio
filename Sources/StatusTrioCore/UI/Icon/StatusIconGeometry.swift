@@ -73,17 +73,22 @@ enum StatusIconGeometry {
         )
     }
 
+    /// Each visible side represents half the battery, excluding the numeric gap.
+    static func batteryFillProgress(_ progress: Double, hasTopGap: Bool, topGapWidth: CGFloat) -> Double {
+        let value = clampedUnit(progress)
+        guard hasTopGap else { return value }
+        let gap = batteryGapFraction(topGapWidth: topGapWidth)
+        return value * (1 - gap) + (value > 0.5 ? gap : 0)
+    }
+
     static func batteryFill(
         progress: Double,
         hasTopGap: Bool = false,
         topGapWidth: CGFloat = batteryChargingBoltTopGapWidth
     ) -> CGPath {
-        batteryArc(
-            from: 0,
-            to: progress,
-            hasTopGap: hasTopGap,
-            topGapWidth: topGapWidth
-        )
+        batteryArc(from: 0,
+            to: batteryFillProgress(progress, hasTopGap: hasTopGap, topGapWidth: topGapWidth),
+            hasTopGap: hasTopGap, topGapWidth: topGapWidth)
     }
 
     /// A visible segment of the battery's progress-space arc. Progress inside

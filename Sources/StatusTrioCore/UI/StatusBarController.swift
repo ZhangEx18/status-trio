@@ -13,7 +13,7 @@ private struct StatusBarAccessibilityKey: Equatable {
 
 @MainActor
 final class StatusBarController: NSObject, NSPopoverDelegate {
-    static let iconSnapshotDebounceInterval: TimeInterval = 0.5
+    static let iconSnapshotThrottleInterval: TimeInterval = 1.0 / 30.0
     static let popoverToggleLockoutInterval: TimeInterval = 0.25
     static let popoverContentReleaseDelay: TimeInterval = 60
 
@@ -27,6 +27,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private let store: SystemStatusStore
     private let settings: SettingsStore
     private let localization: Localization
+    private let perAppAudioController: PerAppAudioController
     let chargingEffectClock: ChargingEffectClock
     private var cancellable: AnyCancellable?
     private var localizationCancellable: AnyCancellable?
@@ -66,6 +67,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         store: SystemStatusStore,
         settings: SettingsStore,
         localization: Localization,
+        perAppAudioController: PerAppAudioController,
         isVisible: Bool = true,
         openSettings: @escaping () -> Void,
         quitAction: @escaping () -> Void,
@@ -74,6 +76,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         self.store = store
         self.settings = settings
         self.localization = localization
+        self.perAppAudioController = perAppAudioController
         self.chargingEffectClock = chargingEffectClock
         self.openSettings = openSettings
         self.quitAction = quitAction
@@ -92,9 +95,10 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             .map { MenuBarStatus(snapshot: $0) }
             .removeDuplicates()
             .dropFirst()
-            .debounce(
-                for: .seconds(Self.iconSnapshotDebounceInterval),
-                scheduler: RunLoop.main
+            .throttle(
+                for: .seconds(Self.iconSnapshotThrottleInterval),
+                scheduler: RunLoop.main,
+                latest: true
             )
             .sink { [weak self] _ in
                 self?.renderLatestSnapshot()
@@ -233,6 +237,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             StatusPopoverView(
                 store: store,
                 settings: settings,
+                perAppAudioController: perAppAudioController,
                 scrollTargets: popoverScrollTargets,
                 requestWiFiNameAccess: { self.handleRequestWiFiNameAccess() },
                 requestBluetoothAuthorization: { self.handleRequestBluetoothAuthorization() },

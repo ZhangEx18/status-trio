@@ -45,6 +45,7 @@ struct StatusBarControllerVisibilityTests {
             store: store,
             settings: settings,
             localization: Localization(defaults: defaults, preferredLanguages: ["en"]),
+            perAppAudioController: PerAppAudioController(),
             openSettings: {},
             quitAction: {},
             chargingEffectClock: clock
@@ -103,6 +104,7 @@ struct StatusBarControllerVisibilityTests {
             store: store,
             settings: SettingsStore(defaults: defaults),
             localization: Localization(defaults: defaults, preferredLanguages: ["en"]),
+            perAppAudioController: PerAppAudioController(),
             openSettings: {},
             quitAction: {},
             chargingEffectClock: clock

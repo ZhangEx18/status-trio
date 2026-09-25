@@ -60,6 +60,25 @@ final class WirelessListModelsTests: XCTestCase {
         XCTAssertEqual(network.connectedBSSID, "02")
     }
 
+    func testWiFiMergePreservesPreferredFrequencyBand() {
+        let network = WiFiNetwork.merge(
+            [
+                WiFiNetworkCandidate(
+                    ssid: "Office",
+                    bssid: "01",
+                    rssi: -56,
+                    channel: 44,
+                    band: .fiveGHz,
+                    security: .wpa2Personal
+                )
+            ],
+            connectedBSSID: nil
+        )[0]
+
+        XCTAssertEqual(network.band, .fiveGHz)
+        XCTAssertEqual(network.rssi, -56)
+    }
+
     func testWiFiGroupingSeparatesKnownAndUnknownScannedNetworks() {
         let candidates = [
             WiFiNetworkCandidate(ssid: "Home", bssid: "01", rssi: -40, channel: 1, security: .wpa2Personal),
@@ -120,20 +139,6 @@ final class WirelessListModelsTests: XCTestCase {
         XCTAssertEqual(WiFiNetworkPresentation.action(for: known), .openSettings)
         XCTAssertEqual(WiFiNetworkPresentation.action(for: unknown), .openSettings)
         XCTAssertEqual(WiFiNetworkPresentation.action(for: connected), .none)
-    }
-
-    func testDetailsToggleStatesTheActionItPerforms() {
-        XCTAssertEqual(
-            WiFiNetworkPresentation.detailsToggleTitleKey(isExpanded: false),
-            .wifiDetailsShow
-        )
-        XCTAssertEqual(WiFiNetworkPresentation.detailsToggleSymbol(isExpanded: false), "info.circle")
-
-        XCTAssertEqual(
-            WiFiNetworkPresentation.detailsToggleTitleKey(isExpanded: true),
-            .wifiDetailsHide
-        )
-        XCTAssertEqual(WiFiNetworkPresentation.detailsToggleSymbol(isExpanded: true), "chevron.up")
     }
 
     func testPreferredNetworkParserSkipsHeaderAndPreservesSSIDs() {

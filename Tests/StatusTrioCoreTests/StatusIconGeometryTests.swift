@@ -16,6 +16,17 @@ final class StatusIconGeometryTests: XCTestCase {
         height: 4.860369269012708
     )
 
+    func testBatteryGapDoesNotHidePercentageChanges() {
+        let width = StatusIconGeometry.batteryValueTopGapWidth
+        let p50 = StatusIconGeometry.batteryFillProgress(0.5, hasTopGap: true, topGapWidth: width)
+        XCTAssertLessThan(p50, 0.5)
+        for percentage in 51...100 {
+            let previous = StatusIconGeometry.batteryFill(progress: Double(percentage - 1) / 100, hasTopGap: true, topGapWidth: width)
+            let next = StatusIconGeometry.batteryFill(progress: Double(percentage) / 100, hasTopGap: true, topGapWidth: width)
+            XCTAssertNotEqual(previous.currentPoint, next.currentPoint)
+        }
+    }
+
     func testBatteryPathsStayInsideCanvas() {
         let track = StatusIconGeometry.batteryTrack()
         let fill = StatusIconGeometry.batteryFill(progress: 0.5)

@@ -18,12 +18,6 @@ struct AudioInputPresentation {
         unknownName: String
     ) -> [AudioInputDevice] {
         devices.sorted { lhs, rhs in
-            let lhsIsCurrent = lhs.id == currentID
-            let rhsIsCurrent = rhs.id == currentID
-            if lhsIsCurrent != rhsIsCurrent {
-                return lhsIsCurrent
-            }
-
             let comparison = displayName(for: lhs, unknownName: unknownName)
                 .compare(
                     displayName(for: rhs, unknownName: unknownName),
@@ -293,32 +287,28 @@ struct AudioInputControlsView: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "mic.fill")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(presentation.isDefaultInputInUse ? Color.white : Color.secondary)
-                .frame(width: 24, height: 24)
-                .background {
-                    Capsule()
-                        .fill(presentation.isDefaultInputInUse ? Color.orange : Color.clear)
-                        .frame(width: 32, height: 26)
+            Group {
+                if let device = status.devices.first(where: { $0.id == status.defaultDeviceID }) {
+                    AudioInputDeviceIconView(device: device)
+                } else {
+                    Image(systemName: "mic.fill")
                 }
-                .accessibilityHidden(true)
+            }
+            .foregroundStyle(.secondary)
+            .frame(width: 24, height: 24)
+            .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 7) {
-                    Text(localization.string(.audioInputTitle))
-                        .font(.headline)
-                        .foregroundStyle(presentation.isDefaultInputInUse ? Color.yellow : Color.primary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-
                 Text(defaultDeviceName)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                    .font(.headline)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                     .help(defaultDeviceName)
+                Text(localization.format(.commonLabelValue,
+                    localization.string(.audioInputVolume), presentation.visibleVolumeValue))
+                    .font(.subheadline)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -411,7 +401,7 @@ struct AudioInputControlsView: View {
     private var muteIcon: some View {
         switch status.muteState {
         case .muted:
-            Image(systemName: "mic.slash.fill")
+            Image(systemName: "mic.slash")
         case .partial:
             Image(systemName: "mic.fill")
                 .overlay(alignment: .topTrailing) {
@@ -426,13 +416,11 @@ struct AudioInputControlsView: View {
     @ViewBuilder
     private var deviceList: some View {
         if presentation.showsDeviceList {
-            Divider()
-                .padding(.top, 2)
+            Divider().padding(.top, 2)
 
             VStack(spacing: 2) {
-                ForEach(orderedDevices.indices, id: \.self) { index in
-                    let device = orderedDevices[index]
-                    deviceRow(device, position: index + 1)
+                ForEach(orderedDevices) { device in
+                    deviceRow(device, position: (orderedDevices.firstIndex(where: { $0.id == device.id }) ?? 0) + 1)
                 }
             }
         } else {
@@ -476,13 +464,13 @@ struct AudioInputControlsView: View {
             : localization.format(.audioInputSwitchTo, displayName)
 
         return Button {
-            guard !isCurrent else { return }
             onSelect(device.id)
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: isCurrent ? "mic.fill" : "mic")
-                    .foregroundStyle(isCurrent ? Color.accentColor : Color.secondary)
-                    .frame(width: 24, height: 24)
+                AudioInputDeviceIconView(device: device)
+                    .foregroundStyle(isCurrent ? Color.white : Color.secondary)
+                    .frame(width: 28, height: 28)
+                    .background(isCurrent ? Color.accentColor : Color.secondary.opacity(0.12), in: Circle())
                     .accessibilityHidden(true)
 
                 Text(displayName)
@@ -490,19 +478,17 @@ struct AudioInputControlsView: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .frame(maxWidth: .infinity, alignment: .leading)
-
-                if isCurrent {
-                    Image(systemName: "checkmark")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color.accentColor)
-                        .accessibilityHidden(true)
-                }
+                Text((isCurrent ? status.scalar : device.scalar).map {
+                    $0.formatted(.percent.precision(.fractionLength(0)).locale(localization.resolvedLanguage.locale))
+                } ?? "—")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
             }
             .padding(.vertical, 3)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(status.isBusy)
+        .disabled(status.error == .timedOut)
         .help(help)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint(isCurrent ? "" : help)

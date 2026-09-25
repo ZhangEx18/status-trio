@@ -7,7 +7,6 @@ import SwiftUI
 /// input device's disconnect is confirmed in place first.
 struct BluetoothDeviceList: View {
     @EnvironmentObject private var localization: Localization
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let devices: [BluetoothDevice]
     let batteryLevels: [String: BluetoothBatteryLevel]
     let actionStates: [String: BluetoothDeviceActionState]
@@ -43,15 +42,13 @@ struct BluetoothDeviceList: View {
         )
 
         VStack(spacing: Self.rowSpacing) {
-            rows(model.visibleDevices)
+            rows(model.visibleDevices, needsScrolling: model.orderedDevices.count > Self.rowsThatFit)
 
             // Deliberately outside the scroll region: collapsing a long list must
             // not require scrolling to the bottom first.
             if model.canToggleExpansion {
                 Button {
-                    withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) {
-                        isExpanded.toggle()
-                    }
+                    isExpanded.toggle()
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "chevron.down")
@@ -75,23 +72,16 @@ struct BluetoothDeviceList: View {
         }
     }
 
-    /// The rows, bounded.
-    ///
-    /// The scroll view appears only once the rows outgrow the panel. The summary
-    /// popover has no scroll view of its own, so without a bound a long list — an
-    /// expanded one, or a limit the user raised — would keep growing the popover
-    /// past the screen. A scroll view that is not needed is not free either: its
-    /// scroller flashes while an expansion animates through the moment where the
-    /// content is taller than the shrinking frame, which a list of six devices
-    /// should never show. Below the bound the rows are laid out directly, so
-    /// there is nothing to flash. The panel's scroll-wheel handling already
-    /// leaves a pointer over an `NSScrollView` to that view instead of adjusting
-    /// the volume.
+    /// Use a scroll container for lists whose full contents exceed the panel.
+    /// Its identity stays fixed while expansion changes only the visible rows.
+    /// Short lists stay in a plain stack so no scroller appears during layout.
     @ViewBuilder
-    private func rows(_ visibleDevices: [BluetoothDevice]) -> some View {
-        if visibleDevices.count > Self.rowsThatFit {
+    private func rows(_ visibleDevices: [BluetoothDevice], needsScrolling: Bool) -> some View {
+        // Container identity depends on the full list, never on expansion.
+        // Existing rows therefore survive both expanding and collapsing.
+        if needsScrolling {
             ScrollView { rowStack(visibleDevices) }
-                .frame(maxHeight: Self.maximumRowsHeight)
+                .frame(height: min(Self.maximumRowsHeight, CGFloat(visibleDevices.count) * Self.rowPitch))
         } else {
             rowStack(visibleDevices)
         }

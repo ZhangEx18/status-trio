@@ -17,15 +17,19 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.3.2</string>
+	<string>1.3.8</string>
 	<key>CFBundleVersion</key>
-	<string>15</string>
+	<string>28</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>15.0</string>
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Used only when you open Bluetooth details to show paired-device connection status.</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>Used to control audio levels for individual apps when you enable App Audio.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Used only for App Audio processing when you enable per-App audio control.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSLocationUsageDescription</key>
