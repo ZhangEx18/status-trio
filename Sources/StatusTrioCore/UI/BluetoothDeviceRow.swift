@@ -10,8 +10,7 @@ import SwiftUI
 /// outlive the panel that asked it.
 ///
 /// A connected device is drawn the way the volume output list draws the device
-/// in use: its glyph ringed in the accent colour, its name in semibold, and a
-/// checkmark after it. That is what says "connected" — the row does not also
+/// in use: its glyph ringed in the accent colour and its name in semibold. That is what says "connected" — the row does not also
 /// spell it out, which leaves its trailing space to the battery level and to
 /// whatever an action is doing.
 struct BluetoothDeviceRow: View {
@@ -56,8 +55,6 @@ struct BluetoothDeviceRow: View {
                     batteryText
                     if status.drawsText {
                         statusText(status)
-                    } else if device.isConnected {
-                        connectedMark
                     }
                 }
                 .contentShape(Rectangle())
@@ -101,16 +98,6 @@ struct BluetoothDeviceRow: View {
             .truncationMode(.tail)
     }
 
-    /// Says the device is connected without a word, the way the volume list marks
-    /// the device in use. The badge already carries the colour, so this is not
-    /// the only indicator.
-    private var connectedMark: some View {
-        Image(systemName: "checkmark")
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(Color.accentColor)
-            .accessibilityHidden(true)
-    }
-
     /// The level as the report's pieces. The charging case is drawn as its glyph
     /// rather than spelled out, so the row is not carrying a word no localization
     /// translates.
@@ -150,7 +137,7 @@ struct BluetoothDeviceRow: View {
     }
 
     /// What the row says about itself beyond the text a screen reader can read on
-    /// its own: the connection state the glyph and the checkmark carry visually,
+    /// its own: the connection state the glyph carries visually,
     /// and the level.
     ///
     /// The level belongs here because its charging-case glyph is drawn inside a

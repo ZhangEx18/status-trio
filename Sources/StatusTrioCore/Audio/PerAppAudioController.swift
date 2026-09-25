@@ -132,7 +132,7 @@ final class PerAppAudioController: ObservableObject {
                 guard let self else { return }
                 self.apps = apps
                 self.tapManager.updateApps(apps)
-                for app in apps {
+                for app in apps where !app.processObjectIDs.isEmpty {
                     let settings = self.settings(for: app)
                     if settings.routing == .explicit {
                         self.apply {
@@ -192,6 +192,8 @@ final class PerAppAudioController: ObservableObject {
         settings.level = min(1, max(0, volume / settings.boost.multiplier))
         settings.normalize()
         settingsStore.set(settings, for: app.persistenceIdentifier)
+        objectWillChange.send()
+        guard !app.processObjectIDs.isEmpty else { return }
         apply {
             try tapManager.setVolume(settings.volume, for: app)
         }
@@ -208,6 +210,8 @@ final class PerAppAudioController: ObservableObject {
         settings.volume = normalizedLevel * settings.boost.multiplier
         settings.normalize()
         settingsStore.set(settings, for: app.persistenceIdentifier)
+        objectWillChange.send()
+        guard !app.processObjectIDs.isEmpty else { return }
         apply {
             try tapManager.setVolume(settings.volume, for: app)
         }
@@ -221,6 +225,8 @@ final class PerAppAudioController: ObservableObject {
         settings.volume = level * boost.multiplier
         settings.normalize()
         settingsStore.set(settings, for: app.persistenceIdentifier)
+        objectWillChange.send()
+        guard !app.processObjectIDs.isEmpty else { return }
         apply {
             try tapManager.setVolume(settings.volume, for: app)
         }
@@ -230,6 +236,8 @@ final class PerAppAudioController: ObservableObject {
         var settings = settings(for: app)
         settings.isMuted = isMuted
         settingsStore.set(settings, for: app.persistenceIdentifier)
+        objectWillChange.send()
+        guard !app.processObjectIDs.isEmpty else { return }
         apply {
             try tapManager.setMuted(isMuted, for: app)
         }
@@ -245,6 +253,8 @@ final class PerAppAudioController: ObservableObject {
         settings.outputDeviceUIDs = outputDeviceUIDs
         settings.normalize()
         settingsStore.set(settings, for: app.persistenceIdentifier)
+        objectWillChange.send()
+        guard !app.processObjectIDs.isEmpty else { return }
         apply {
             try tapManager.setRouting(
                 settings.routing,

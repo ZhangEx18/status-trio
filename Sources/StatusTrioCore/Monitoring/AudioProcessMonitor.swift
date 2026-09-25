@@ -17,6 +17,18 @@ protocol AudioProcessMonitoring: AnyObject {
 }
 
 enum AudioProcessListReducer {
+    static func livingApps(_ apps: [AudioAppDescriptor], audioProcesses: [AudioAppDescriptor]) -> [AudioAppDescriptor] {
+        normalized(apps.map { app in
+            let processes = audioProcesses.filter {
+                $0.processID == app.processID || $0.persistenceIdentifier == app.persistenceIdentifier
+            }
+            return AudioAppDescriptor(processID: app.processID,
+                processObjectIDs: Array(Set(processes.flatMap(\.processObjectIDs))).sorted(),
+                bundleIdentifier: app.bundleIdentifier, displayName: app.displayName,
+                isSystemProcess: app.isSystemProcess)
+        }).sorted { $0.persistenceIdentifier < $1.persistenceIdentifier }
+    }
+
     static func normalized(_ processes: [AudioAppDescriptor]) -> [AudioAppDescriptor] {
         var merged: [String: AudioAppDescriptor] = [:]
         var order: [String] = []
@@ -57,14 +69,21 @@ final class CoreAudioProcessReader: AudioProcessReading {
             uniquingKeysWith: { _, latest in latest }
         )
 
-        return processObjectIDs().compactMap { objectID in
+        let processes: [AudioAppDescriptor] = processObjectIDs().compactMap { objectID in
             guard let processID = processID(for: objectID),
-                  processID != ownProcessID,
-                  isRunningOutput(for: objectID) else {
+                  processID != ownProcessID else {
                 return nil
             }
 
-            let application = runningApps[processID]
+            let processApplication = runningApps[processID] ?? NSRunningApplication(processIdentifier: processID)
+            // Helpers inside an app bundle belong to that living application,
+            // even when Core Audio reports the helper's own bundle identifier.
+            let application = processApplication?.bundleURL.flatMap { helperURL in
+                runningApps.values.first { candidate in
+                    guard candidate.activationPolicy == .regular, let appURL = candidate.bundleURL else { return false }
+                    return helperURL.path.hasPrefix(appURL.path + "/")
+                }
+            } ?? processApplication
             let bundleIdentifier = application?.bundleIdentifier
                 ?? bundleIdentifier(for: objectID)
             let displayName = application?.localizedName
@@ -81,6 +100,15 @@ final class CoreAudioProcessReader: AudioProcessReading {
                 )
             )
         }
+        let apps = runningApps.values.filter {
+            !$0.isTerminated && $0.processIdentifier != ownProcessID && $0.activationPolicy == .regular
+        }.map { app in
+            AudioAppDescriptor(processID: app.processIdentifier, processObjectIDs: [],
+                bundleIdentifier: app.bundleIdentifier,
+                displayName: app.localizedName ?? app.bundleIdentifier ?? "Unknown Audio App",
+                isSystemProcess: false)
+        }
+        return AudioProcessListReducer.livingApps(apps, audioProcesses: processes)
     }
 
     private func processObjectIDs() -> [AudioObjectID] {
@@ -153,25 +181,6 @@ final class CoreAudioProcessReader: AudioProcessReading {
         )
         guard status == noErr, let value else { return nil }
         return value.takeUnretainedValue() as String
-    }
-
-    private func isRunningOutput(for objectID: AudioObjectID) -> Bool {
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioProcessPropertyIsRunningOutput,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-        var value: UInt32 = 0
-        var dataSize = UInt32(MemoryLayout<UInt32>.size)
-        let status = AudioObjectGetPropertyData(
-            objectID,
-            &address,
-            0,
-            nil,
-            &dataSize,
-            &value
-        )
-        return status == noErr && value != 0
     }
 
     static func isSystemProcess(bundleIdentifier: String?, displayName: String) -> Bool {

@@ -3,6 +3,28 @@ import XCTest
 
 @MainActor
 final class PerAppAudioControllerTests: XCTestCase {
+    func testIdleAppSettingsWaitForAudioProcessAndApplyWhenItAppears() async {
+        let monitor = FakeAudioProcessMonitor()
+        let taps = RecordingProcessTapManager()
+        let controller = PerAppAudioController(monitor: monitor, tapManager: taps,
+            settingsStore: PerAppAudioSettingsStore(defaults: makeDefaults()))
+        let idle = AudioAppDescriptor(processID: 42, processObjectIDs: [],
+            bundleIdentifier: "com.example.Player", displayName: "Player", isSystemProcess: false)
+        controller.start()
+        controller.setVolume(0.3, for: idle)
+        XCTAssertEqual(controller.settings(for: idle).volume, 0.3)
+        XCTAssertNil(taps.lastVolume)
+        XCTAssertNil(controller.lastError)
+        let playing = AudioAppDescriptor(processID: 42, processObjectIDs: [100],
+            bundleIdentifier: idle.bundleIdentifier, displayName: idle.displayName, isSystemProcess: false)
+        monitor.send([playing])
+        for _ in 0..<100 where taps.lastVolume == nil {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        XCTAssertEqual(taps.lastVolume, 0.3)
+        controller.stop()
+    }
+
     func testControllerPublishesAppsAndForwardsVolumeChanges() async {
         let monitor = FakeAudioProcessMonitor()
         let taps = RecordingProcessTapManager()

@@ -13,6 +13,7 @@ struct BatteryReading: Equatable {
     var isCharging: Bool
     var isCharged: Bool = false
     var timeToFullChargeMinutes: Int? = nil
+    var remainingMinutes: Int? = nil
     var isConnectedToPower: Bool
     var isPresent: Bool
 }
@@ -73,19 +74,17 @@ final class IOPSBatteryReader: BatteryReadingProviding {
             isCharging: description[kIOPSIsChargingKey] as? Bool ?? false,
             isCharged: description[kIOPSIsChargedKey] as? Bool ?? false,
             timeToFullChargeMinutes: timeToFullCharge,
+            remainingMinutes: integerValue(description[kIOPSTimeToEmptyKey]).flatMap { $0 > 0 ? $0 : nil },
             isConnectedToPower: description[kIOPSPowerSourceStateKey] as? String == kIOPSACPowerValue,
             isPresent: description[kIOPSIsPresentKey] as? Bool ?? true
         )
     }
 
     private static func integerValue(_ value: Any?) -> Int? {
-        if let value = value as? Int {
-            return value
-        }
-        if let value = value as? NSNumber {
-            return value.intValue
-        }
-        return nil
+        guard let value = value as? NSNumber,
+              CFGetTypeID(value) != CFBooleanGetTypeID(),
+              !["f", "d"].contains(String(cString: value.objCType)) else { return nil }
+        return Int(exactly: value.doubleValue)
     }
 }
 
@@ -211,6 +210,7 @@ final class BatteryMonitor: BatteryMonitoring {
                 timeToFullChargeMinutes: reading.isCharging
                     ? reading.timeToFullChargeMinutes
                     : nil,
+                remainingMinutes: !reading.isConnectedToPower && !reading.isCharging ? reading.remainingMinutes : nil,
                 isLowPowerMode: lowPowerModeProvider(),
                 isConnectedToPower: reading.isConnectedToPower
             )

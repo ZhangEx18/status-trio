@@ -15,7 +15,7 @@ struct NetworkStatusView: View {
     let isConstrained: Bool
     let wifi: WiFiStatus
     let isResolvingName: Bool
-    let onOpenWiFiDetails: (Bool) -> Void
+    let onOpenWiFiDetails: () -> Void
     let onOpenWiredDetails: () -> Void
     let onRequestNameAccess: () -> Void
     let onOpenWiFiSettings: () -> Void

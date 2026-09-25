@@ -28,7 +28,6 @@ struct UnifiedAudioPanelView: View {
                 inputPanel
             }
         }
-        .animation(.snappy(duration: 0.2), value: tab)
     }
 
     private var outputPanel: some View {

@@ -284,7 +284,7 @@ enum StatusPresentation {
 private enum PopoverPanel {
     case summary
     case battery
-    case wifi(showDetails: Bool)
+    case wifi
     case ethernet
 }
 
@@ -322,7 +322,7 @@ struct StatusPopoverView: View {
                     },
                     onOpenBatterySettings: openBatterySettings
                 )
-            case .wifi(let showDetails):
+            case .wifi:
                 WiFiNetworkListView(
                     controller: store.wifiNetworks,
                     wifi: store.popupSnapshot.wifi,
@@ -332,8 +332,7 @@ struct StatusPopoverView: View {
                     },
                     onRequestNameAccess: requestWiFiNameAccess,
                     onOpenWiFiSettings: openWiFiSettings,
-                    onOpenLocationSettings: openLocationSettings,
-                    showsDetailsInitially: showDetails
+                    onOpenLocationSettings: openLocationSettings
                 )
             case .ethernet:
                 EthernetLinkView(
@@ -386,9 +385,9 @@ struct StatusPopoverView: View {
                 isConstrained: store.isNetworkConstrained,
                 wifi: store.popupSnapshot.wifi,
                 isResolvingName: store.isResolvingWiFiName,
-                onOpenWiFiDetails: { showDetails in
+                onOpenWiFiDetails: {
                     store.activateWiFiPanel()
-                    panel = .wifi(showDetails: showDetails)
+                    panel = .wifi
                 },
                 onOpenWiredDetails: {
                     store.activatePrimaryLinkPanel()

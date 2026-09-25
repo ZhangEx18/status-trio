@@ -25,6 +25,16 @@ struct BatteryStatusView: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .truncationMode(.middle)
+                        if !battery.isConnectedToPower, !battery.isCharging,
+                           let minutes = battery.remainingMinutes, minutes > 0 {
+                            Text(localization.format(.commonLabelValue,
+                                localization.string(.batteryDetailsRemaining),
+                                Duration.seconds(Double(minutes) * 60).formatted(
+                                    .units(allowed: [.hours, .minutes], width: .abbreviated)
+                                        .locale(localization.resolvedLanguage.locale))))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     Spacer()

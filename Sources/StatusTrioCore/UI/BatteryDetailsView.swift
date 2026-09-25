@@ -35,6 +35,15 @@ struct BatteryDetailsView: View {
     @ViewBuilder
     private var fields: some View {
         VStack(alignment: .leading, spacing: 6) {
+            if battery.isCharging {
+                Text(StatusPresentation.batteryTimeToFullText(
+                    minutes: battery.timeToFullChargeMinutes, localization: localization))
+                    .foregroundStyle(.secondary)
+            } else if !battery.isConnectedToPower {
+                row(.batteryDetailsRemaining, (battery.remainingMinutes ?? controller.details?.remainingMinutes).map {
+                    Duration.seconds(Double($0) * 60).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated).locale(localization.resolvedLanguage.locale))
+                } ?? localization.string(.batteryDetailsUnavailable))
+            }
             if let details = controller.details {
                 let reading = BatteryPowerPresentation(details: details, isConnectedToPower: battery.isConnectedToPower)
                 row(reading.title, reading.watts.map {
@@ -56,11 +65,6 @@ struct BatteryDetailsView: View {
                 }
                 if let watts = details.adapterWatts {
                     row(.batteryDetailsAdapter, watts.formatted(.number.locale(localization.resolvedLanguage.locale)) + " W")
-                }
-                if !battery.isConnectedToPower {
-                    row(.batteryDetailsRemaining, details.remainingMinutes.map {
-                        Duration.seconds($0 * 60).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated).locale(localization.resolvedLanguage.locale))
-                    } ?? localization.string(.batteryDetailsUnavailable))
                 }
                 if let count = details.cycleCount {
                     row(.batteryDetailsCycles, count.formatted(.number.locale(localization.resolvedLanguage.locale)))
