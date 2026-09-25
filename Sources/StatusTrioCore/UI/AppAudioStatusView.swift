@@ -62,11 +62,8 @@ struct AppAudioStatusView: View {
         return VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 8) {
                 appIcon(for: app)
-
-                Text(app.displayName)
-                    .font(.body.weight(.medium))
-                    .lineLimit(1)
-                    .frame(width: 65, alignment: .leading)
+                    .help(app.displayName)
+                    .accessibilityLabel(app.displayName)
 
                 Slider(value: Binding(get: { controller.level(for: app) },
                     set: { controller.setLevel($0, for: app) }), in: 0...1)
