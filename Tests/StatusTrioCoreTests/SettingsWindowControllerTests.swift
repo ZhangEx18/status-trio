@@ -4,6 +4,9 @@ import XCTest
 
 @MainActor
 final class SettingsWindowControllerTests: XCTestCase {
+    func testClosingLastSettingsWindowDoesNotTerminateMenuBarApp() {
+        XCTAssertFalse(AppDelegate().applicationShouldTerminateAfterLastWindowClosed(NSApplication.shared))
+    }
     func testShowCreatesReusesAndLocalizesSingleWindow() throws {
         let suiteName = "StatusTrioCoreTests.SettingsWindow.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))

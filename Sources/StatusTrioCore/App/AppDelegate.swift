@@ -27,6 +27,14 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         environment?.stop()
     }
 
+    /// Status Trio is a menu bar app. Closing its settings window must not end
+    /// the process while the menu bar item remains active.
+    public func applicationShouldTerminateAfterLastWindowClosed(
+        _ sender: NSApplication
+    ) -> Bool {
+        false
+    }
+
     public func applicationShouldHandleReopen(
         _ sender: NSApplication,
         hasVisibleWindows flag: Bool
