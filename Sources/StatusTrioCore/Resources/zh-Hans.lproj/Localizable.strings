@@ -196,7 +196,7 @@
 "audioInput.volumeUnavailable" = "此设备不支持调节音量。";
 "audioInput.muteUnavailable" = "此设备不支持静音。";
 "audioInput.openSettings" = "打开声音设置";
-"audioInput.switchFailed" = "切换失败。";
+"audioInput.switchFailed" = "无法切换输入设备。";
 "audioInput.volumeFailed" = "音量调整失败。";
 "audioInput.muteFailed" = "静音调整失败。";
 "audioInput.refreshFailed" = "状态刷新失败。";
