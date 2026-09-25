@@ -1,3 +1,5 @@
 "NSLocationUsageDescription" = "用于在弹出窗口中显示当前 Wi-Fi 名称，并在打开 Wi-Fi 详情时读取网络名称、扫描结果和连接信息。";
 "NSLocationWhenInUseUsageDescription" = "用于在弹出窗口中显示当前 Wi-Fi 名称，并在打开 Wi-Fi 详情时读取网络名称、扫描结果和连接信息。";
 "NSBluetoothAlwaysUsageDescription" = "仅在打开蓝牙详情时用于显示已配对设备的连接状态。";
+"NSAudioCaptureUsageDescription" = "启用 App 音频后，用于控制各个 App 的音量。";
+"NSMicrophoneUsageDescription" = "仅在启用按 App 音频控制时，用于音频处理。";

@@ -373,3 +373,8 @@
 "settings.bluetooth.permissionRequired" = "يلزم إذن Bluetooth";
 "settings.bluetooth.permissionNotDeterminedDescription" = "يحتاج Status Trio إلى الوصول إلى Bluetooth لعرض أجهزتك. انقر الزر أدناه لمنح الإذن.";
 "settings.bluetooth.permissionDeniedDescription" = "تم رفض الوصول إلى Bluetooth. قم بتفعيله في إعدادات النظام لاستخدام هذه الميزة.";
+"settings.popup.order.appAudio" = "صوت التطبيقات";
+"audioApp.noApps" = "لا توجد تطبيقات تشغّل الصوت حاليًا.";
+"audioApp.unavailable" = "التحكم في صوت التطبيقات غير متاح على هذا الـ Mac.";
+"audioApp.permission" = "اسمح بتسجيل الشاشة وصوت النظام للتحكم في صوت التطبيقات.";
+"audioApp.openPermissionSettings" = "فتح إعدادات الأذونات";

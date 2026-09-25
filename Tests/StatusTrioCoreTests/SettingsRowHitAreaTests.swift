@@ -16,6 +16,7 @@ final class SettingsRowHitAreaTests: XCTestCase {
         let view = StatusPopoverView(
             store: store,
             settings: settings,
+            perAppAudioController: PerAppAudioController(),
             scrollTargets: PopoverScrollTargets(),
             requestWiFiNameAccess: {},
             requestBluetoothAuthorization: {},

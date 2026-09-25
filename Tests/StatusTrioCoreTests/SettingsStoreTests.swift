@@ -650,7 +650,7 @@ final class SettingsStoreTests: XCTestCase {
 
         XCTAssertEqual(
             store.popupSectionOrder,
-            [.battery, .network, .vpn, .bluetooth, .volume, .audioInput]
+            [.battery, .network, .vpn, .bluetooth, .volume, .audioInput, .appAudio]
         )
     }
 
@@ -741,9 +741,10 @@ final class SettingsStoreTests: XCTestCase {
         let store = SettingsStore(defaults: suite.defaults)
         XCTAssertEqual(
             store.popupSectionOrder,
-            [.volume, .battery, .network, .vpn, .bluetooth, .audioInput]
+            [.volume, .battery, .network, .vpn, .bluetooth, .audioInput, .appAudio]
         )
         XCTAssertFalse(store.enabledPopupSections.contains(.audioInput))
+        XCTAssertFalse(store.enabledPopupSections.contains(.appAudio))
         store.setPopupSection(.audioInput, enabled: true)
         XCTAssertTrue(
             SettingsStore(defaults: suite.defaults).visiblePopupSections.contains(.audioInput)
@@ -870,6 +871,17 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertNotNil(
             NSImage(
                 systemSymbolName: PopupSection.audioInput.systemImage,
+                accessibilityDescription: nil
+            )
+        )
+    }
+
+    func testAppAudioPopupSectionMetadata() {
+        XCTAssertEqual(PopupSection.appAudio.titleKey, .settingsPopupOrderAppAudio)
+        XCTAssertEqual(PopupSection.appAudio.systemImage, "slider.horizontal.3")
+        XCTAssertNotNil(
+            NSImage(
+                systemSymbolName: PopupSection.appAudio.systemImage,
                 accessibilityDescription: nil
             )
         )

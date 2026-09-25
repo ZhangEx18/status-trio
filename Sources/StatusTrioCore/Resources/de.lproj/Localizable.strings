@@ -373,3 +373,8 @@
 "settings.bluetooth.permissionRequired" = "Bluetooth-Berechtigung erforderlich";
 "settings.bluetooth.permissionNotDeterminedDescription" = "Status Trio benötigt Bluetooth-Zugriff, um deine Geräte anzuzeigen. Klicke unten auf die Schaltfläche, um sie zu erteilen.";
 "settings.bluetooth.permissionDeniedDescription" = "Der Bluetooth-Zugriff wurde verweigert. Aktiviere ihn in den Systemeinstellungen, um diese Funktion zu nutzen.";
+"settings.popup.order.appAudio" = "App-Audio";
+"audioApp.noApps" = "Derzeit geben keine Apps Audio wieder.";
+"audioApp.unavailable" = "Die App-Audiosteuerung ist auf diesem Mac nicht verfügbar.";
+"audioApp.permission" = "Erlaube Bildschirm- und Systemaudioaufnahme, um App-Audio zu steuern.";
+"audioApp.openPermissionSettings" = "Berechtigungseinstellungen öffnen";

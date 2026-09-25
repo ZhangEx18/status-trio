@@ -291,6 +291,7 @@ private enum PopoverPanel {
 struct StatusPopoverView: View {
     @ObservedObject var store: SystemStatusStore
     @ObservedObject var settings: SettingsStore
+    @ObservedObject var perAppAudioController: PerAppAudioController
     let scrollTargets: PopoverScrollTargets
     @EnvironmentObject private var localization: Localization
     let requestWiFiNameAccess: () -> Void
@@ -427,6 +428,11 @@ struct StatusPopoverView: View {
                 onScalarChange: { store.setInputScalar($0) },
                 onToggleMute: { store.toggleInputMute() },
                 onOpenSoundSettings: openSoundSettings
+            )
+        case .appAudio:
+            AppAudioStatusView(
+                controller: perAppAudioController,
+                permission: perAppAudioController.permission
             )
         }
     }
