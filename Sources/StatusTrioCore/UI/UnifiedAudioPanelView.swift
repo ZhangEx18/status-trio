@@ -15,16 +15,7 @@ struct UnifiedAudioPanelView: View {
                 tabButton(.output, symbol: "speaker.wave.2.fill", title: .volumeOutputTitle)
                 tabButton(.input, symbol: "mic.fill", title: .audioInputTitle)
                 Spacer()
-                if tab == .input {
-                    Text([store.liveVolume.deviceName, store.liveInput.deviceName].compactMap { $0 }.joined(separator: " · "))
-                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                    Spacer()
-                    Button(action: onOpenSoundSettings) {
-                        Image(systemName: "gearshape")
-                    }
-                    .buttonStyle(.plain)
-                    .help(localization.string(.audioInputOpenSettings))
-                }
+
             }
             if tab == .output {
                 outputDevices
@@ -34,10 +25,7 @@ struct UnifiedAudioPanelView: View {
                     onSelect: { store.selectInputDevice($0) },
                     onScalarChange: { store.setInputScalar($0) },
                     onToggleMute: { store.toggleInputMute() },
-                    onOpenSoundSettings: onOpenSoundSettings,
-                    compact: true,
-                    onDeviceScalarChange: { store.setInputDeviceScalar($0, on: $1) },
-                    onDeviceMutedChange: { store.setInputDeviceMuted($0, on: $1) }
+                    onOpenSoundSettings: onOpenSoundSettings
                 )
             }
             Divider()

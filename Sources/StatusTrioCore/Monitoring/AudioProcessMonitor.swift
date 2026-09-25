@@ -1,6 +1,7 @@
 import AppKit
 import AudioToolbox
 import Combine
+import Darwin
 
 @MainActor
 protocol AudioProcessReading: AnyObject {
@@ -62,7 +63,7 @@ enum AudioProcessListReducer {
 /// can add property listeners later without changing this value-level reader.
 @MainActor
 final class CoreAudioProcessReader: AudioProcessReading {
-    private var knownIdentifiers: Set<String> = []
+    private var history = AudioProcessAppHistory()
     private let ownProcessID = ProcessInfo.processInfo.processIdentifier
 
     func read() -> [AudioAppDescriptor] {
@@ -71,6 +72,11 @@ final class CoreAudioProcessReader: AudioProcessReading {
             uniquingKeysWith: { _, latest in latest }
         )
 
+        let primaryApps = runningApps.filter { _, app in
+            !app.isTerminated && app.processIdentifier != ownProcessID && app.activationPolicy == .regular
+        }
+        let applicationURLs = primaryApps.compactMapValues(\.bundleURL)
+
         let processes: [AudioAppDescriptor] = processObjectIDs().compactMap { objectID in
             guard let processID = processID(for: objectID),
                   processID != ownProcessID, isRunning(for: objectID) else {
@@ -78,21 +84,18 @@ final class CoreAudioProcessReader: AudioProcessReading {
             }
 
             let processApplication = runningApps[processID] ?? NSRunningApplication(processIdentifier: processID)
-            // Helpers inside an app bundle belong to that living application,
-            // even when Core Audio reports the helper's own bundle identifier.
-            let application = processApplication?.bundleURL.flatMap { helperURL in
-                runningApps.values.first { candidate in
-                    guard candidate.activationPolicy == .regular, let appURL = candidate.bundleURL else { return false }
-                    return helperURL.path.hasPrefix(appURL.path + "/")
-                }
-            } ?? processApplication
+            let processURL = processApplication?.bundleURL ?? executableURL(for: processID)
+            let ownerPID = AudioProcessOwnerResolver.ownerPID(processID: processID,
+                processURL: processURL, applicationURLs: applicationURLs,
+                parentPID: { Self.parentPID(for: $0) })
+            let application = ownerPID.flatMap { primaryApps[$0] } ?? processApplication
             let bundleIdentifier = application?.bundleIdentifier
                 ?? bundleIdentifier(for: objectID)
             let displayName = application?.localizedName
                 ?? bundleIdentifier
                 ?? "Unknown Audio App"
             return AudioAppDescriptor(
-                processID: processID,
+                processID: application?.processIdentifier ?? processID,
                 processObjectIDs: [objectID],
                 bundleIdentifier: bundleIdentifier,
                 displayName: displayName,
@@ -102,22 +105,31 @@ final class CoreAudioProcessReader: AudioProcessReading {
                 )
             )
         }
-        let apps = runningApps.values.filter {
-            !$0.isTerminated && $0.processIdentifier != ownProcessID && $0.activationPolicy == .regular
-        }.map { app in
+        let apps = primaryApps.values.map { app in
             AudioAppDescriptor(processID: app.processIdentifier, processObjectIDs: [],
                 bundleIdentifier: app.bundleIdentifier,
                 displayName: app.localizedName ?? app.bundleIdentifier ?? "Unknown Audio App",
                 isSystemProcess: false)
         }
-        let active = AudioProcessListReducer.livingApps(apps, audioProcesses: processes)
-        knownIdentifiers.formIntersection(Set(apps.map(\.persistenceIdentifier)))
-        knownIdentifiers.formUnion(active.map(\.persistenceIdentifier))
-        return AudioProcessListReducer.livingApps(apps, audioProcesses: processes, knownIdentifiers: knownIdentifiers)
+        return history.update(livingApps: apps, audioProcesses: processes)
+    }
+
+    private func executableURL(for pid: pid_t) -> URL? {
+        var path = [CChar](repeating: 0, count: 4 * Int(MAXPATHLEN))
+        guard proc_pidpath(pid, &path, UInt32(path.count)) > 0 else { return nil }
+        return URL(fileURLWithPath: String(cString: path))
+    }
+
+    private static func parentPID(for pid: pid_t) -> pid_t? {
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.size
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+        guard sysctl(&mib, UInt32(mib.count), &info, &size, nil, 0) == 0, size > 0 else { return nil }
+        return info.kp_eproc.e_ppid
     }
 
     private func isRunning(for objectID: AudioObjectID) -> Bool {
-        var address = AudioObjectPropertyAddress(mSelector: kAudioProcessPropertyIsRunning,
+        var address = AudioObjectPropertyAddress(mSelector: kAudioProcessPropertyIsRunningOutput,
             mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
         var value: UInt32 = 0
         var size = UInt32(MemoryLayout<UInt32>.size)
@@ -227,13 +239,15 @@ final class SystemAudioProcessMonitor: AudioProcessMonitoring {
     let updates: AsyncStream<[AudioAppDescriptor]>
     private let continuation: AsyncStream<[AudioAppDescriptor]>.Continuation
     private let reader: any AudioProcessReading
+    private let observer: any AudioProcessChangeObserving
     private(set) var apps: [AudioAppDescriptor] = []
     private var isStarted = false
     private var isStopped = false
     private var refreshTask: Task<Void, Never>?
 
-    init(reader: (any AudioProcessReading)? = nil) {
+    init(reader: (any AudioProcessReading)? = nil, observer: (any AudioProcessChangeObserving)? = nil) {
         self.reader = reader ?? CoreAudioProcessReader()
+        self.observer = observer ?? CoreAudioProcessChangeObserver()
         (updates, continuation) = MonitorStream.make(of: [AudioAppDescriptor].self)
     }
 
@@ -245,6 +259,7 @@ final class SystemAudioProcessMonitor: AudioProcessMonitoring {
     func start() {
         guard !isStarted, !isStopped else { return }
         isStarted = true
+        observer.start { [weak self] in self?.refresh() }
         refresh()
         refreshTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
@@ -258,6 +273,7 @@ final class SystemAudioProcessMonitor: AudioProcessMonitoring {
     func stop() {
         guard !isStopped else { return }
         isStopped = true
+        observer.stop()
         refreshTask?.cancel()
         refreshTask = nil
         continuation.finish()
