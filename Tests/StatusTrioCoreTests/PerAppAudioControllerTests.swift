@@ -22,12 +22,15 @@ final class PerAppAudioControllerTests: XCTestCase {
 
         controller.start()
         monitor.send([app])
-        await Task.yield()
+        for _ in 0..<100 where controller.apps != [app] {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
         controller.setVolume(2, for: app)
 
         XCTAssertEqual(controller.apps, [app])
         XCTAssertEqual(controller.settings(for: app).volume, 2)
-        XCTAssertEqual(taps.lastVolume, (app.id, 2))
+        XCTAssertEqual(taps.lastVolumeAppID, app.id)
+        XCTAssertEqual(taps.lastVolume, 2)
     }
 
     func testControllerReportsTapFailureButKeepsPersistedIntent() async {
@@ -101,7 +104,8 @@ private final class FakeAudioProcessMonitor: AudioProcessMonitoring {
 @MainActor
 private final class RecordingProcessTapManager: ProcessTapManaging {
     var error: PerAppAudioError?
-    var lastVolume: (String, Double)?
+    private(set) var lastVolumeAppID: String?
+    private(set) var lastVolume: Double?
 
     func updateApps(_ apps: [AudioAppDescriptor]) {}
     func start() {}
@@ -109,7 +113,8 @@ private final class RecordingProcessTapManager: ProcessTapManaging {
 
     func setVolume(_ volume: Double, for app: AudioAppDescriptor) throws {
         if let error { throw error }
-        lastVolume = (app.id, volume)
+        lastVolumeAppID = app.id
+        lastVolume = volume
     }
 
     func setMuted(_ isMuted: Bool, for app: AudioAppDescriptor) throws {
