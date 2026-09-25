@@ -115,4 +115,12 @@ private final class RecordingProcessTapManager: ProcessTapManaging {
     func setMuted(_ isMuted: Bool, for app: AudioAppDescriptor) throws {
         if let error { throw error }
     }
+
+    func setRouting(
+        _ routing: AudioRoutingMode,
+        outputDeviceUIDs: [String],
+        for app: AudioAppDescriptor
+    ) throws {
+        if let error { throw error }
+    }
 }
