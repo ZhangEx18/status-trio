@@ -53,6 +53,27 @@ final class PerAppAudioModelTests: XCTestCase {
         XCTAssertTrue(settings.outputDeviceUIDs.isEmpty)
     }
 
+    func testBoostPreservesSliderLevelAndEffectiveGain() {
+        let settings = PerAppAudioSettings(
+            volume: 1.5,
+            level: 0.75,
+            boost: .twoX
+        )
+
+        XCTAssertEqual(settings.normalizedLevel, 0.75)
+        XCTAssertEqual(settings.boost.multiplier, 2)
+        XCTAssertEqual(settings.volume, 1.5)
+    }
+
+    func testOlderSettingsPayloadDefaultsToNormalBoost() throws {
+        let data = #"{"volume":2,"isMuted":false,"routing":"followSystemDefault","outputDeviceUIDs":[]}"#.data(using: .utf8)!
+        let settings = try JSONDecoder().decode(PerAppAudioSettings.self, from: data)
+
+        XCTAssertEqual(settings.boost, .normal)
+        XCTAssertEqual(settings.normalizedLevel, 1)
+        XCTAssertEqual(settings.volume, 2)
+    }
+
     func testProcessIdentityIsHashableAndCodable() throws {
         let identity = AudioAppProcessIdentity(processID: 42, objectIDs: [100, 101])
         let data = try JSONEncoder().encode(identity)

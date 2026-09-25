@@ -744,7 +744,7 @@ final class SettingsStoreTests: XCTestCase {
             [.volume, .battery, .network, .vpn, .bluetooth, .audioInput, .appAudio]
         )
         XCTAssertFalse(store.enabledPopupSections.contains(.audioInput))
-        XCTAssertFalse(store.enabledPopupSections.contains(.appAudio))
+        XCTAssertTrue(store.enabledPopupSections.contains(.appAudio))
         store.setPopupSection(.audioInput, enabled: true)
         XCTAssertTrue(
             SettingsStore(defaults: suite.defaults).visiblePopupSections.contains(.audioInput)
@@ -756,11 +756,11 @@ final class SettingsStoreTests: XCTestCase {
 
         XCTAssertEqual(
             store.enabledPopupSections,
-            Set([.battery, .network, .vpn, .volume])
+            Set([.battery, .network, .vpn, .appAudio])
         )
         XCTAssertEqual(
             store.visiblePopupSections,
-            [.battery, .network, .vpn, .volume]
+            [.battery, .network, .vpn, .appAudio]
         )
     }
 
@@ -778,13 +778,13 @@ final class SettingsStoreTests: XCTestCase {
         )
         XCTAssertEqual(
             first.visiblePopupSections,
-            [.battery, .vpn, .bluetooth, .volume]
+            [.battery, .vpn, .bluetooth, .appAudio]
         )
 
         let second = SettingsStore(defaults: suite.defaults)
         XCTAssertEqual(
             second.enabledPopupSections,
-            Set([.battery, .vpn, .bluetooth, .volume])
+            Set([.battery, .vpn, .bluetooth, .appAudio])
         )
     }
 

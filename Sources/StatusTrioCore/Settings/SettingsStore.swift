@@ -66,7 +66,7 @@ final class SettingsStore: ObservableObject {
     static let outputDeviceOrderDefaultsKey = "outputDeviceOrder"
     static let popupSectionOrderDefaultsKey = "popupSectionOrder"
     static let enabledPopupSectionsDefaultsKey = "enabledPopupSections"
-    static let defaultEnabledPopupSections: Set<PopupSection> = [.battery, .network, .vpn, .volume]
+    static let defaultEnabledPopupSections: Set<PopupSection> = [.battery, .network, .vpn, .appAudio]
     /// Set once the VPN row has been offered to a stored section list.
     ///
     /// `defaultEnabledPopupSections` only reaches a user who has never saved
@@ -74,6 +74,7 @@ final class SettingsStore: ObservableObject {
     /// after that, a stored list without `.vpn` means the user switched the row
     /// off, and that choice has to survive every later launch.
     static let vpnPopupSectionIntroducedDefaultsKey = "vpnPopupSectionIntroduced.v1"
+    static let appAudioPopupSectionIntroducedDefaultsKey = "appAudioPopupSectionIntroduced.v1"
     static let popupScrollAdjustsVolumeDefaultsKey = "popupScrollAdjustsVolume"
     static let defaultPopupScrollAdjustsVolume = true
     static let popupVolumeScrollScopeDefaultsKey = "popupVolumeScrollScope"
@@ -766,9 +767,13 @@ final class SettingsStore: ObservableObject {
         let hasIntroducedVPN = defaults.bool(
             forKey: Self.vpnPopupSectionIntroducedDefaultsKey
         )
+        let hasIntroducedAppAudio = defaults.bool(
+            forKey: Self.appAudioPopupSectionIntroducedDefaultsKey
+        )
         let migratedEnabledPopupSections = Self.sanitizedEnabledPopupSections(
             storedEnabledPopupSections,
-            hasIntroducedVPN: hasIntroducedVPN
+            hasIntroducedVPN: hasIntroducedVPN,
+            hasIntroducedAppAudio: hasIntroducedAppAudio
         )
         self.enabledPopupSections = migratedEnabledPopupSections
         if !hasIntroducedVPN {
@@ -783,6 +788,15 @@ final class SettingsStore: ObservableObject {
                 )
             }
             defaults.set(true, forKey: Self.vpnPopupSectionIntroducedDefaultsKey)
+        }
+        if !hasIntroducedAppAudio {
+            if storedEnabledPopupSections != nil {
+                defaults.set(
+                    migratedEnabledPopupSections.map(\.rawValue).sorted(),
+                    forKey: Self.enabledPopupSectionsDefaultsKey
+                )
+            }
+            defaults.set(true, forKey: Self.appAudioPopupSectionIntroducedDefaultsKey)
         }
         self.popupScrollAdjustsVolume = defaults.object(
             forKey: Self.popupScrollAdjustsVolumeDefaultsKey
@@ -866,7 +880,8 @@ final class SettingsStore: ObservableObject {
     /// turned the row off, and that choice is what gets returned.
     static func sanitizedEnabledPopupSections(
         _ rawValues: [String]?,
-        hasIntroducedVPN: Bool
+        hasIntroducedVPN: Bool,
+        hasIntroducedAppAudio: Bool = true
     ) -> Set<PopupSection> {
         guard let rawValues else {
             return defaultEnabledPopupSections
@@ -874,6 +889,11 @@ final class SettingsStore: ObservableObject {
         var sections = Set(rawValues.compactMap(PopupSection.init(rawValue:)))
         if !hasIntroducedVPN {
             sections.insert(.vpn)
+        }
+        if !hasIntroducedAppAudio, sections.contains(.volume) {
+            sections.remove(.volume)
+            sections.remove(.audioInput)
+            sections.insert(.appAudio)
         }
         return sections
     }

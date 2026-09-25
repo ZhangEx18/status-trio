@@ -373,7 +373,7 @@
 "settings.bluetooth.permissionRequired" = "需要藍牙權限";
 "settings.bluetooth.permissionNotDeterminedDescription" = "狀態列需要藍牙權限才能顯示你的裝置。點擊下面的按鈕以授予權限。";
 "settings.bluetooth.permissionDeniedDescription" = "藍牙權限已被拒絕。請在系統設定中開啟以使用此功能。";
-"settings.popup.order.appAudio" = "App 音訊";
+"settings.popup.order.appAudio" = "應用音訊";
 "audioApp.noApps" = "目前沒有正在播放音訊的 App。";
 "audioApp.unavailable" = "這台 Mac 暫不支援按 App 控制音訊。";
 "audioApp.permission" = "請允許「螢幕與系統音訊錄製」權限，以控制 App 音訊。";
