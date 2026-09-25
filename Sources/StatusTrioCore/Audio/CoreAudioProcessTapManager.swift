@@ -47,7 +47,7 @@ private final class AudioTapSession: @unchecked Sendable {
     let identity: AudioAppProcessIdentity
     let tapID: AudioObjectID
     let aggregateID: AudioObjectID
-    let outputDeviceUID: String
+    let outputDeviceUIDs: [String]
     var ioProcID: AudioDeviceIOProcID?
     nonisolated(unsafe) var gain: Float
     nonisolated(unsafe) var volume: Double = PerAppAudioSettings.defaultVolume
@@ -57,14 +57,14 @@ private final class AudioTapSession: @unchecked Sendable {
         identity: AudioAppProcessIdentity,
         tapID: AudioObjectID,
         aggregateID: AudioObjectID,
-        outputDeviceUID: String,
+        outputDeviceUIDs: [String],
         volume: Double,
         isMuted: Bool
     ) {
         self.identity = identity
         self.tapID = tapID
         self.aggregateID = aggregateID
-        self.outputDeviceUID = outputDeviceUID
+        self.outputDeviceUIDs = outputDeviceUIDs
         self.volume = volume
         self.isMuted = isMuted
         self.gain = AudioTapBufferProcessor.gain(volume: volume, muted: isMuted)
@@ -184,14 +184,14 @@ final class CoreAudioProcessTapManager: ProcessTapManaging {
 
     func setVolume(_ volume: Double, for app: AudioAppDescriptor) throws {
         guard isStarted else { throw PerAppAudioError.unavailable }
-        let session = try session(for: app, initialVolume: volume, initialMuted: false, outputDeviceUID: nil)
+        let session = try session(for: app, initialVolume: volume, initialMuted: false, outputDeviceUIDs: nil)
         session.volume = volume
         session.gain = AudioTapBufferProcessor.gain(volume: volume, muted: session.isMuted)
     }
 
     func setMuted(_ isMuted: Bool, for app: AudioAppDescriptor) throws {
         guard isStarted else { throw PerAppAudioError.unavailable }
-        let session = try session(for: app, initialVolume: PerAppAudioSettings.defaultVolume, initialMuted: isMuted, outputDeviceUID: nil)
+        let session = try session(for: app, initialVolume: PerAppAudioSettings.defaultVolume, initialMuted: isMuted, outputDeviceUIDs: nil)
         session.isMuted = isMuted
         session.gain = AudioTapBufferProcessor.gain(volume: session.volume, muted: isMuted)
     }
@@ -210,7 +210,7 @@ final class CoreAudioProcessTapManager: ProcessTapManaging {
             for: app,
             initialVolume: currentVolume,
             initialMuted: currentMuted,
-            outputDeviceUID: routing == .explicit ? outputDeviceUIDs.first : nil
+            outputDeviceUIDs: routing == .explicit ? outputDeviceUIDs : nil
         )
     }
 
@@ -218,7 +218,7 @@ final class CoreAudioProcessTapManager: ProcessTapManaging {
         for app: AudioAppDescriptor,
         initialVolume: Double,
         initialMuted: Bool,
-        outputDeviceUID: String?
+        outputDeviceUIDs requestedOutputDeviceUIDs: [String]?
     ) throws -> AudioTapSession {
         if let existing = sessions[app.id] {
             return existing
@@ -230,18 +230,20 @@ final class CoreAudioProcessTapManager: ProcessTapManaging {
             throw PerAppAudioError.permissionDenied
         }
         let outputDevices = outputController.outputDevices()
-        let outputUID: String
-        if let outputDeviceUID {
-            guard outputDevices.contains(where: { $0.uid == outputDeviceUID }) else {
-                throw PerAppAudioError.processUnavailable
-            }
-            outputUID = outputDeviceUID
+        let availableUIDs = Set(outputDevices.compactMap(\.uid))
+        let selectedUIDs: [String]
+        if let requestedOutputDeviceUIDs {
+            selectedUIDs = requestedOutputDeviceUIDs.filter { availableUIDs.contains($0) }
         } else if let current = outputDevices.first(where: { $0.isCurrent }),
                   let currentUID = current.uid {
-            outputUID = currentUID
+            selectedUIDs = [currentUID]
         } else {
+            selectedUIDs = []
+        }
+        guard !selectedUIDs.isEmpty else {
             throw PerAppAudioError.processUnavailable
         }
+        let outputUID = selectedUIDs[0]
 
         let tapDescription = CATapDescription(
             stereoMixdownOfProcesses: app.processObjectIDs.map { AudioObjectID($0) }
@@ -264,10 +266,12 @@ final class CoreAudioProcessTapManager: ProcessTapManaging {
             kAudioAggregateDeviceClockDeviceKey: outputUID,
             kAudioAggregateDeviceIsPrivateKey: true,
             kAudioAggregateDeviceTapAutoStartKey: true,
-            kAudioAggregateDeviceSubDeviceListKey: [[
-                kAudioSubDeviceUIDKey: outputUID,
-                kAudioSubDeviceDriftCompensationKey: false
-            ]],
+            kAudioAggregateDeviceSubDeviceListKey: selectedUIDs.map { uid in
+                [
+                    kAudioSubDeviceUIDKey: uid,
+                    kAudioSubDeviceDriftCompensationKey: selectedUIDs.count > 1
+                ]
+            },
             kAudioAggregateDeviceTapListKey: [[
                 kAudioSubTapUIDKey: tapDescription.uuid.uuidString,
                 kAudioSubTapDriftCompensationKey: false
@@ -293,7 +297,7 @@ final class CoreAudioProcessTapManager: ProcessTapManaging {
             identity: app.processIdentity,
             tapID: tapID,
             aggregateID: aggregateID,
-            outputDeviceUID: outputUID,
+            outputDeviceUIDs: selectedUIDs,
             volume: initialVolume,
             isMuted: initialMuted
         )

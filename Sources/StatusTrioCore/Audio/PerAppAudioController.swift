@@ -189,6 +189,36 @@ final class PerAppAudioController: ObservableObject {
     func setVolume(_ volume: Double, for app: AudioAppDescriptor) {
         var settings = settings(for: app)
         settings.volume = volume
+        settings.level = min(1, max(0, volume / settings.boost.multiplier))
+        settings.normalize()
+        settingsStore.set(settings, for: app.persistenceIdentifier)
+        apply {
+            try tapManager.setVolume(settings.volume, for: app)
+        }
+    }
+
+    func level(for app: AudioAppDescriptor) -> Double {
+        settings(for: app).normalizedLevel
+    }
+
+    func setLevel(_ level: Double, for app: AudioAppDescriptor) {
+        var settings = settings(for: app)
+        let normalizedLevel = min(1, max(0, level.isFinite ? level : 1))
+        settings.level = normalizedLevel
+        settings.volume = normalizedLevel * settings.boost.multiplier
+        settings.normalize()
+        settingsStore.set(settings, for: app.persistenceIdentifier)
+        apply {
+            try tapManager.setVolume(settings.volume, for: app)
+        }
+    }
+
+    func setBoost(_ boost: AudioBoostPreset, for app: AudioAppDescriptor) {
+        var settings = settings(for: app)
+        let level = settings.normalizedLevel
+        settings.boost = boost
+        settings.level = level
+        settings.volume = level * boost.multiplier
         settings.normalize()
         settingsStore.set(settings, for: app.persistenceIdentifier)
         apply {

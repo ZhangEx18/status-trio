@@ -430,9 +430,12 @@ struct StatusPopoverView: View {
                 onOpenSoundSettings: openSoundSettings
             )
         case .appAudio:
-            AppAudioStatusView(
-                controller: perAppAudioController,
-                permission: perAppAudioController.permission
+            UnifiedAudioPanelView(
+                store: store,
+                settings: settings,
+                appAudioController: perAppAudioController,
+                scrollTargets: scrollTargets,
+                onOpenSoundSettings: openSoundSettings
             )
         }
     }
