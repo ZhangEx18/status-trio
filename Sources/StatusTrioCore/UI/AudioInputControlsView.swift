@@ -196,9 +196,6 @@ struct AudioInputControlsView: View {
     let onScalarChange: (Double) -> Void
     let onToggleMute: () -> Void
     let onOpenSoundSettings: () -> Void
-    var compact = false
-    var onDeviceScalarChange: (Double, AudioDeviceID) -> Void = { _, _ in }
-    var onDeviceMutedChange: (Bool, AudioDeviceID) -> Void = { _, _ in }
 
     @State private var volumeDraft = AudioInputVolumeDraft()
 
@@ -256,10 +253,8 @@ struct AudioInputControlsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if !compact {
-                header
-                controls
-            }
+            header
+            controls
             deviceList
 
             if let error = status.error {
@@ -292,32 +287,28 @@ struct AudioInputControlsView: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "mic.fill")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(presentation.isDefaultInputInUse ? Color.white : Color.secondary)
-                .frame(width: 24, height: 24)
-                .background {
-                    Capsule()
-                        .fill(presentation.isDefaultInputInUse ? Color.orange : Color.clear)
-                        .frame(width: 32, height: 26)
+            Group {
+                if let device = status.devices.first(where: { $0.id == status.defaultDeviceID }) {
+                    AudioInputDeviceIconView(device: device)
+                } else {
+                    Image(systemName: "mic.fill")
                 }
-                .accessibilityHidden(true)
+            }
+            .foregroundStyle(.secondary)
+            .frame(width: 24, height: 24)
+            .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 7) {
-                    Text(localization.string(.audioInputTitle))
-                        .font(.headline)
-                        .foregroundStyle(presentation.isDefaultInputInUse ? Color.yellow : Color.primary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-
                 Text(defaultDeviceName)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                    .font(.headline)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                     .help(defaultDeviceName)
+                Text(localization.format(.commonLabelValue,
+                    localization.string(.audioInputVolume), presentation.visibleVolumeValue))
+                    .font(.subheadline)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -425,23 +416,11 @@ struct AudioInputControlsView: View {
     @ViewBuilder
     private var deviceList: some View {
         if presentation.showsDeviceList {
-            if !compact {
-                Divider().padding(.top, 2)
-            }
+            Divider().padding(.top, 2)
 
             VStack(spacing: 2) {
                 ForEach(orderedDevices) { device in
-                    if compact {
-                        HStack(spacing: 8) {
-                            deviceRow(device, position: (orderedDevices.firstIndex(where: { $0.id == device.id }) ?? 0) + 1)
-                            AudioInputDeviceControlsRow(device: device, status: status,
-                                onScalar: { onDeviceScalarChange($0, device.id) },
-                                onMuted: { onDeviceMutedChange($0, device.id) })
-                                .frame(width: 145)
-                        }
-                    } else {
-                        deviceRow(device, position: (orderedDevices.firstIndex(where: { $0.id == device.id }) ?? 0) + 1)
-                    }
+                    deviceRow(device, position: (orderedDevices.firstIndex(where: { $0.id == device.id }) ?? 0) + 1)
                 }
             }
         } else {
@@ -499,7 +478,11 @@ struct AudioInputControlsView: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .frame(maxWidth: .infinity, alignment: .leading)
-
+                Text((isCurrent ? status.scalar : device.scalar).map {
+                    $0.formatted(.percent.precision(.fractionLength(0)).locale(localization.resolvedLanguage.locale))
+                } ?? "—")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
             }
             .padding(.vertical, 3)
             .contentShape(Rectangle())

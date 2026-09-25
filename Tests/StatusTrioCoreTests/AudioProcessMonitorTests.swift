@@ -53,6 +53,31 @@ final class AudioProcessMonitorTests: XCTestCase {
         XCTAssertNil(next)
     }
 
+    func testPlaybackAndRelaunchEventsRefreshWithoutWaitingForPolling() {
+        let reader = FakeAudioProcessReader(processes: [])
+        let events = FakeAudioProcessEvents()
+        let monitor = SystemAudioProcessMonitor(reader: reader, observer: events)
+        monitor.start()
+        let app = AudioAppDescriptor(processID: 20, processObjectIDs: [200],
+            bundleIdentifier: "com.microsoft.edgemac", displayName: "Microsoft Edge", isSystemProcess: false)
+        reader.processes = [app]
+        events.emit()
+        XCTAssertEqual(monitor.apps, [app])
+        reader.processes = []
+        events.emit()
+        XCTAssertTrue(monitor.apps.isEmpty)
+        let relaunched = AudioAppDescriptor(processID: 30, processObjectIDs: [300],
+            bundleIdentifier: app.bundleIdentifier, displayName: app.displayName, isSystemProcess: false)
+        reader.processes = [relaunched]
+        events.emit()
+        XCTAssertEqual(monitor.apps, [relaunched])
+        monitor.stop()
+        XCTAssertTrue(events.stopped)
+        reader.processes = []
+        events.emit()
+        XCTAssertEqual(monitor.apps, [relaunched])
+    }
+
     private func nextValue(
         from stream: AsyncStream<[AudioAppDescriptor]>,
         timeout: Duration = .seconds(1)
@@ -84,4 +109,13 @@ private final class FakeAudioProcessReader: AudioProcessReading {
     func read() -> [AudioAppDescriptor] {
         processes
     }
+}
+
+@MainActor
+private final class FakeAudioProcessEvents: AudioProcessChangeObserving {
+    var callback: (@MainActor () -> Void)?
+    var stopped = false
+    func start(onChange: @escaping @MainActor () -> Void) { callback = onChange }
+    func stop() { stopped = true }
+    func emit() { callback?() }
 }

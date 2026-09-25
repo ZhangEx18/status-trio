@@ -92,16 +92,7 @@ struct VolumeControlsView: View {
         if volume.isMuted {
             return "speaker.slash"
         }
-        guard let scalar = volume.scalar, scalar > 0 else {
-            return "speaker.fill"
-        }
-        if scalar < 0.33 {
-            return "speaker.wave.1.fill"
-        } else if scalar < 0.66 {
-            return "speaker.wave.2.fill"
-        } else {
-            return "speaker.wave.3.fill"
-        }
+        return "speaker.fill"
     }
 
     private var percentageText: String {
