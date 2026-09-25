@@ -261,6 +261,15 @@ final class AudioInputMonitor: AudioInputMonitoring {
 
   func select(_ id: AudioDeviceID) {
     beginUserAction()
+    // A previous command timeout must not permanently block switching to a
+    // different input device. The next explicit device selection is a fresh
+    // command and clears the stale timeout state.
+    if status.error == .timedOut {
+      clearError()
+      activeCommand = nil
+      commandTimeoutTask?.cancel()
+      commandTimeoutTask = nil
+    }
     guard canAcceptAction else { return }
     guard status.devices.contains(where: { $0.id == id }) else {
       showError(.switchFailed)
