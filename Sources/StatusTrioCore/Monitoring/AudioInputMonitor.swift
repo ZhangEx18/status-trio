@@ -1,5 +1,8 @@
 import AudioToolbox
 import Foundation
+import OSLog
+
+private let audioInputLogger = Logger(subsystem: "com.lingsmbp.StatusTrio", category: "audio-input")
 
 @MainActor
 protocol AudioInputMonitoring: AnyObject {
@@ -274,6 +277,9 @@ final class AudioInputMonitor: AudioInputMonitoring {
     guard status.devices.contains(where: { $0.id == id }) else {
       showError(.switchFailed)
       return
+    }
+    if let device = status.devices.first(where: { $0.id == id }) {
+      audioInputLogger.info("Input switch requested: id=\(id, privacy: .public), name=\(device.name ?? "unknown", privacy: .public)")
     }
     clearPendingScalar()
     // Keep only the latest selection while a HAL operation is in flight.
@@ -654,6 +660,9 @@ final class AudioInputMonitor: AudioInputMonitoring {
       expectedDeviceID: active.deviceID,
       result: result
     )
+    if let operationError = result.operationError {
+      audioInputLogger.error("Input command failed: \(String(describing: operationError), privacy: .public)")
+    }
     let failure = commandError ?? (observationDegraded ? .refreshFailed : nil)
     status.error = failure
     status.isBusy = false
