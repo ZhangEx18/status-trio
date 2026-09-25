@@ -27,9 +27,14 @@ struct AppAudioStatusView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(controller.apps) { app in
-                    appRow(app)
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 10) {
+                        ForEach(controller.apps) { app in
+                            appRow(app)
+                        }
+                    }
                 }
+                .frame(maxHeight: 240)
             }
 
             if permission.status != .authorized {

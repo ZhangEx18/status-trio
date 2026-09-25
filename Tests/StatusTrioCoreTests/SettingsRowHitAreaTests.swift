@@ -85,9 +85,9 @@ final class SettingsRowHitAreaTests: XCTestCase {
         )
     }
 
-    func testWiFiDetailsToggleUsesFullRowHitArea() {
+    func testWiFiOtherNetworksToggleUsesFullRowHitArea() {
         let localization = makeLocalization()
-        let view = WiFiDetailsToggleRow(isExpanded: .constant(false))
+        let view = WiFiOtherNetworksToggleRow(isExpanded: .constant(false))
             .environmentObject(localization)
             .frame(width: 260)
 
@@ -98,7 +98,7 @@ final class SettingsRowHitAreaTests: XCTestCase {
 
         XCTAssertTrue(
             hitAreaWidths.contains { abs($0 - 260) < 0.5 },
-            "Expected the details row to react across the whole list width, got \(hitAreaWidths)"
+            "Expected the other networks row to react across the whole list width, got \(hitAreaWidths)"
         )
     }
 

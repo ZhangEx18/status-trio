@@ -5,6 +5,7 @@ struct BatteryStatus: Equatable, Sendable {
     let isPresent: Bool
     let isCharging: Bool
     let isCharged: Bool
+    let remainingMinutes: Int?
     let timeToFullChargeMinutes: Int?
     let isLowPowerMode: Bool
     let isConnectedToPower: Bool
@@ -15,6 +16,7 @@ struct BatteryStatus: Equatable, Sendable {
         isCharging: Bool,
         isCharged: Bool = false,
         timeToFullChargeMinutes: Int? = nil,
+        remainingMinutes: Int? = nil,
         isLowPowerMode: Bool,
         isConnectedToPower: Bool
     ) {
@@ -23,6 +25,7 @@ struct BatteryStatus: Equatable, Sendable {
         self.isCharging = isCharging
         self.isCharged = isCharged
         self.timeToFullChargeMinutes = timeToFullChargeMinutes
+        self.remainingMinutes = remainingMinutes
         self.isLowPowerMode = isLowPowerMode
         self.isConnectedToPower = isConnectedToPower
     }

@@ -9,9 +9,8 @@ struct WiFiNetworkListView: View {
     let onRequestNameAccess: () -> Void
     let onOpenWiFiSettings: () -> Void
     let onOpenLocationSettings: () -> Void
-    let showsDetailsInitially: Bool
 
-    @State private var showsDetails = false
+    @State private var showsOtherNetworks = false
 
     var body: some View {
         let grouped = WiFiNetworkPresentation.grouped(controller.networks)
@@ -48,7 +47,6 @@ struct WiFiNetworkListView: View {
         }
         .onAppear {
             controller.activate(nameAccess: wifi.nameAccess)
-            showsDetails = showsDetails || showsDetailsInitially
         }
     }
 
@@ -78,25 +76,22 @@ struct WiFiNetworkListView: View {
                 networkRow(network)
             }
 
-            if networks.contains(where: \.isConnected) || controller.details.ssid != nil {
-                WiFiDetailsToggleRow(isExpanded: $showsDetails)
 
-                if showsDetails {
-                    WiFiDetailsView(details: controller.details)
-                }
-            }
         }
     }
 
     @ViewBuilder
     private func otherNetworksSection(_ networks: [WiFiNetwork]) -> some View {
         if !networks.isEmpty {
-            Text(localization.string(.wifiOtherNetworks))
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-            ForEach(networks) { network in
-                networkRow(network)
+            VStack(alignment: .leading, spacing: 10) {
+                WiFiOtherNetworksToggleRow(isExpanded: $showsOtherNetworks)
+                if showsOtherNetworks {
+                    ForEach(networks) { network in
+                        networkRow(network)
+                    }
+                }
             }
+            .transaction { $0.animation = nil }
         }
     }
 
@@ -175,7 +170,7 @@ struct WiFiNetworkListView: View {
                         .accessibilityHidden(true)
                 }
             }
-            .padding(.horizontal, network.isConnected ? 8 : 0)
+            .padding(.horizontal, 8)
             .padding(.vertical, 6)
             .background {
                 if network.isConnected {
@@ -245,31 +240,4 @@ struct WiFiNetworkListView: View {
         guard !network.isConnected else { return "\(name), \(connection)" }
         return "\(name), \(connection), \(localization.string(.wifiActionOpenSettings))"
     }
-}
-
-private struct WiFiDetailsView: View {
-    @EnvironmentObject private var localization: Localization
-    let details: WiFiConnectionDetails
-
-    var body: some View {
-        VStack(spacing: 5) {
-            // The rows live in `LinkDetailPresentation` because the wired panel
-            // draws five of the same ones; only the radio rows are this panel's.
-            LinkDetailsList(
-                rows: LinkDetailPresentation.wirelessRows(
-                    details,
-                    expanded: showsMore,
-                    localization: localization
-                )
-            )
-            Button(showsMore ? localization.string(.wifiDetailsLess) : localization.string(.wifiDetailsMore)) {
-                showsMore.toggle()
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.leading, 26)
-        .font(.caption)
-    }
-
-    @State private var showsMore = false
 }

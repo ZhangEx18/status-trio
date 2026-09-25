@@ -28,7 +28,7 @@ struct AudioAppProcessIdentity: Hashable, Codable, Sendable {
     let objectIDs: [UInt32]
 }
 
-/// Metadata for an application that exposes an audio process through Core Audio.
+/// Metadata for a living application. Audio process IDs can be empty while idle.
 /// Icons remain a UI concern so this model stays Codable and Sendable.
 struct AudioAppDescriptor: Identifiable, Hashable, Codable, Sendable {
     let processID: Int32

@@ -3,6 +3,19 @@ import XCTest
 
 @MainActor
 final class AudioProcessMonitorTests: XCTestCase {
+    func testLivingAppsRemainVisibleWithoutAudioAndExitedAppsDisappear() {
+        let idle = AudioAppDescriptor(processID: 20, processObjectIDs: [],
+            bundleIdentifier: "com.example.Player", displayName: "Player", isSystemProcess: false)
+        let audio = AudioAppDescriptor(processID: 21, processObjectIDs: [201],
+            bundleIdentifier: idle.bundleIdentifier, displayName: "Player Helper", isSystemProcess: false)
+        XCTAssertEqual(AudioProcessListReducer.livingApps([idle], audioProcesses: []), [idle])
+        let playing = AudioProcessListReducer.livingApps([idle], audioProcesses: [audio])
+        XCTAssertEqual(playing.count, 1)
+        XCTAssertEqual(playing.first?.processObjectIDs, [201])
+        XCTAssertEqual(playing.first?.displayName, "Player")
+        XCTAssertTrue(AudioProcessListReducer.livingApps([], audioProcesses: [audio]).isEmpty)
+    }
+
     func testReducerDropsSystemProcessesAndMergesHelpersByBundleID() {
         let processes = [
             AudioAppDescriptor(processID: 10, processObjectIDs: [100], bundleIdentifier: "com.apple.coreaudio", displayName: "coreaudiod", isSystemProcess: true),

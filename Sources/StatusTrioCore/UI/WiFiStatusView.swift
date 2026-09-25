@@ -6,7 +6,7 @@ struct WiFiStatusView: View {
     let wifi: WiFiStatus
     var connection: NetworkConnection = .wifi
     var isResolvingName: Bool = false
-    let onOpenDetails: (Bool) -> Void
+    let onOpenDetails: () -> Void
     let onRequestNameAccess: () -> Void
     let onOpenWiFiSettings: () -> Void
     let onOpenLocationSettings: () -> Void
@@ -16,7 +16,7 @@ struct WiFiStatusView: View {
             Button {
                 switch StatusMappings.wifiSummaryAction(for: wifi) {
                 case .openDetails:
-                    onOpenDetails(NSEvent.modifierFlags.contains(.option))
+                    onOpenDetails()
                 case .requestNameAccess:
                     onRequestNameAccess()
                 case .openLocationSettings:
