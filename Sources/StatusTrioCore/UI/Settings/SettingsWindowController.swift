@@ -1,6 +1,9 @@
 import AppKit
 import Combine
 import SwiftUI
+import OSLog
+
+private let settingsWindowLogger = Logger(subsystem: "com.lingsmbp.StatusTrio", category: "settings-window")
 
 @MainActor
 final class SettingsWindowController: NSWindowController, NSWindowDelegate {
@@ -76,8 +79,13 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         guard !isClosingWindow else { return }
         isClosingWindow = true
+        settingsWindowLogger.info("Settings window will close")
         statusStore.setSettingsVisible(false)
         leaveActivationPolicyIfNeeded()
+    }
+
+    func windowDidClose(_ notification: Notification) {
+        settingsWindowLogger.info("Settings window did close")
         window = nil
     }
 
