@@ -82,10 +82,9 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         settingsWindowLogger.info("Settings window will close")
         statusStore.setSettingsVisible(false)
         leaveActivationPolicyIfNeeded()
-    }
-
-    func windowDidClose(_ notification: Notification) {
-        settingsWindowLogger.info("Settings window did close")
+        // Release the closed window. A fresh instance on the next presentation
+        // avoids retaining stale AppKit/SwiftUI state across close and reopen.
+        window = nil
     }
 
     /// Brings Settings back to the front after a system dialog (such as the
@@ -131,7 +130,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
         window.contentView = NSHostingView(rootView: rootView)
         window.delegate = self
-        window.isReleasedWhenClosed = false
+        window.isReleasedWhenClosed = true
         window.isMovableByWindowBackground = true
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
