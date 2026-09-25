@@ -24,6 +24,7 @@ final class AudioCapturePermissionController: ObservableObject {
     private let preflight: () -> Bool
     private let requestAccess: () -> Bool
     private let openSettings: () -> Bool
+    nonisolated(unsafe) private var activationObserver: NSObjectProtocol?
 
     init(
         preflight: @escaping () -> Bool = {
@@ -40,7 +41,22 @@ final class AudioCapturePermissionController: ObservableObject {
         self.requestAccess = requestAccess
         self.openSettings = openSettings
         self.status = .unknown
+        activationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.refresh()
+            }
+        }
         refresh()
+    }
+
+    deinit {
+        if let activationObserver {
+            NotificationCenter.default.removeObserver(activationObserver)
+        }
     }
 
     func refresh() {
