@@ -408,7 +408,7 @@ struct AudioInputControlsView: View {
     private var muteIcon: some View {
         switch status.muteState {
         case .muted:
-            Image(systemName: "mic.slash.fill")
+            Image(systemName: "mic.slash")
         case .partial:
             Image(systemName: "mic.fill")
                 .overlay(alignment: .topTrailing) {

@@ -78,7 +78,8 @@ struct AppAudioStatusView: View {
                 Button {
                     controller.setMuted(!appSettings.isMuted, for: app)
                 } label: {
-                    Image(systemName: appSettings.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                    Image(systemName: appSettings.isMuted ? "speaker.slash" : "speaker.wave.2.fill")
+                        .foregroundStyle(appSettings.isMuted ? Color.red : Color.secondary)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(
