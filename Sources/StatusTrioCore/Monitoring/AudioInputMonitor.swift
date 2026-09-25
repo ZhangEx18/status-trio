@@ -145,6 +145,7 @@ final class AudioInputMonitor: AudioInputMonitoring {
   private var usagePollTask: Task<Void, Never>?
   private var usageReadID: UUID?
   private var usageReadInFlight = false
+  private var preferredMacBookAttempted = false
 
   init(
     hardware: any AudioInputHardware = CoreAudioInputHardware(),
@@ -193,6 +194,7 @@ final class AudioInputMonitor: AudioInputMonitoring {
     clearError()
 
     if enabled {
+      preferredMacBookAttempted = false
       let generation = sessionGeneration
       let sessionGate = AudioInputSessionGate()
       self.sessionGate = sessionGate
@@ -717,6 +719,19 @@ final class AudioInputMonitor: AudioInputMonitoring {
   private func apply(_ reading: AudioInputReading) {
     if let devices = reading.devices {
       status.devices = devices
+      if !preferredMacBookAttempted,
+         let currentID = reading.defaultDeviceID,
+         let macBook = devices.first(where: {
+           ($0.name ?? "").localizedCaseInsensitiveContains("MacBook Air")
+         }),
+         macBook.id != currentID {
+        preferredMacBookAttempted = true
+        audioInputLogger.info("Selecting MacBook Air as the preferred default input")
+        queuedCommands.insert(
+          QueuedCommand(command: .select(macBook.id), deviceID: macBook.id),
+          at: 0
+        )
+      }
     }
     status.defaultDeviceID = reading.defaultDeviceID
     status.deviceName = reading.deviceName
