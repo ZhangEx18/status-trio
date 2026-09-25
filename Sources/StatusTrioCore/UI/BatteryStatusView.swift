@@ -71,6 +71,8 @@ struct BatteryStatusView: View {
     /// and shows no chevron — the same shape as an unavailable Bluetooth radio.
     var showsDetailAffordance: Bool { battery.isPresent }
 
+    var showsPowerBolt: Bool { battery.isPresent && (battery.isCharging || battery.isConnectedToPower) }
+
     @ViewBuilder
     private var batteryIcon: some View {
         if !battery.isPresent {
@@ -92,7 +94,7 @@ struct BatteryStatusView: View {
                 }
                 .frame(width: 18, height: 7)
                 .offset(x: -1)
-                if battery.isCharging {
+                if showsPowerBolt {
                     // Knock out a border around the bolt so it stays legible
                     // over both the filled and empty portions in either theme.
                     Image(systemName: "bolt.fill")

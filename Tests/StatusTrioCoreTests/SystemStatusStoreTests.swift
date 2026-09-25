@@ -781,6 +781,33 @@ final class SystemStatusStoreTests: XCTestCase {
         store.stop()
     }
 
+    func testVolumeDragUpdatesLiveValueAndPlaysOnlyOnRelease() async {
+        let volume = FakeVolumeMonitor()
+        let feedback = FakeVolumeFeedbackPlayer()
+        let store = SystemStatusStore(
+            batteryMonitor: FakeBatteryMonitor(), wifiMonitor: FakeWiFiMonitor(),
+            volumeMonitor: volume, volumeFeedback: feedback, refreshInterval: .seconds(60)
+        )
+        store.start()
+        defer { store.stop() }
+        volume.send(VolumeStatus(scalar: 0.4, isMuted: false, deviceName: "Speaker"))
+        await waitUntil { store.liveVolume.scalar == 0.4 }
+        store.setVolumeEditing(true)
+        for value in [0.5, 0.6, 0.8] {
+            store.setVolume(value)
+            XCTAssertEqual(store.liveVolume.scalar, value)
+            XCTAssertEqual(store.snapshot.volume.scalar, value)
+            XCTAssertEqual(feedback.playCount, 0)
+        }
+        store.setVolumeEditing(false)
+        XCTAssertEqual(feedback.playCount, 1)
+        store.setVolumeEditing(false)
+        store.setVolumeEditing(true)
+        store.setVolume(0.8)
+        store.setVolumeEditing(false)
+        XCTAssertEqual(feedback.playCount, 1, "Unchanged drags and repeated end events remain silent")
+    }
+
     func testMuteToggleDoesNotPlayTheVolumeFeedback() async {
         let volume = FakeVolumeMonitor()
         let feedback = FakeVolumeFeedbackPlayer()
@@ -2086,6 +2113,8 @@ private final class FakeAudioInputMonitor: AudioInputMonitoring {
     func select(_ id: AudioDeviceID) { selectedDeviceIDs.append(id) }
     func setScalar(_ value: Double) { scalarValues.append(value) }
     func toggleMute() { toggleMuteCount += 1 }
+    func setDeviceScalar(_ value: Double, on id: AudioDeviceID) { scalarValues.append(value) }
+    func setDeviceMuted(_ muted: Bool, on id: AudioDeviceID) {}
     func stop() { stopCount += 1 }
     func send(_ value: AudioInputStatus) { continuation.yield(value) }
 }

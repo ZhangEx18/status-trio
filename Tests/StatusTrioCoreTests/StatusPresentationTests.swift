@@ -3,6 +3,16 @@ import XCTest
 
 @MainActor
 final class StatusPresentationTests: XCTestCase {
+    func testChargeLimitSubtitleRequiresExternalPowerAndReachedLimit() {
+        let localization = makeLocalization(.simplifiedChinese)
+        for (connected, percentage, expected) in [(true, 95, "已充电至 95% 上限"),
+            (true, 94, "已连接电源"), (false, 95, "电池供电") ] {
+            let battery = BatteryStatus(rawPercentage: percentage, isPresent: true, isCharging: false,
+                chargeLimit: 95, isLowPowerMode: false, isConnectedToPower: connected)
+            XCTAssertEqual(StatusPresentation.batterySubtitle(battery, localization: localization), expected)
+        }
+    }
+
     func testBatteryTitleAndSubtitlePriority() {
         let localization = makeLocalization(.simplifiedChinese)
 

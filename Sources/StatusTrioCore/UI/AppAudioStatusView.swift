@@ -65,13 +65,6 @@ struct AppAudioStatusView: View {
                     .help(app.displayName)
                     .accessibilityLabel(app.displayName)
 
-                Slider(value: Binding(get: { controller.level(for: app) },
-                    set: { controller.setLevel($0, for: app) }), in: 0...1)
-                    .accessibilityLabel(localization.string(.volumeAccessibilityLabel))
-                Text(controller.level(for: app).formatted(.percent.precision(.fractionLength(0))))
-                    .font(.caption.monospacedDigit())
-                    .frame(width: 32, alignment: .trailing)
-
                 Button {
                     controller.setMuted(!appSettings.isMuted, for: app)
                 } label: {
@@ -85,17 +78,24 @@ struct AppAudioStatusView: View {
                     )
                     )
 
+                AudioLevelSlider(value: Binding(get: { controller.level(for: app) },
+                    set: { controller.setLevel($0, for: app) }))
+                    .accessibilityLabel(localization.string(.volumeAccessibilityLabel))
+                Text(controller.level(for: app).formatted(.percent.precision(.fractionLength(0))))
+                    .font(.caption.monospacedDigit())
+                    .frame(width: 32, alignment: .trailing)
+
                 Button { controller.setBoost(appSettings.boost.next, for: app) } label: {
-                    VStack(spacing: -3) {
+                    VStack(spacing: -2) {
                         ForEach((0..<3).reversed(), id: \.self) { index in
                             Image(systemName: "chevron.compact.up")
                                 .font(.system(size: 12, weight: .heavy))
                                 .foregroundStyle(index < Int(appSettings.boost.multiplier) - 1
                                     ? Color.accentColor : Color.primary.opacity(0.18))
                         }
-                        .frame(width: 22, height: 28)
-                        .contentShape(Rectangle())
                     }
+                    .frame(width: 22, height: 28)
+                    .contentShape(Rectangle())
                 }
                     .buttonStyle(.plain)
                     .help(boostTitle(appSettings.boost))

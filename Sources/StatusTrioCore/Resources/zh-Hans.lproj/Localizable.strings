@@ -385,3 +385,5 @@
 "audio.routing.system" = "系统音频";
 "audio.routing.followSystem" = "跟随 macOS 默认设备";
 "audio.routing.systemUnavailable" = "多设备模式不可用";
+
+"battery.state.charged_to_limit" = "已充电至 %d%% 上限";

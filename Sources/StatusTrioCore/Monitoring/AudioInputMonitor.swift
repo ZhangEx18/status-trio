@@ -10,6 +10,8 @@ protocol AudioInputMonitoring: AnyObject {
   func select(_ id: AudioDeviceID)
   func setScalar(_ value: Double)
   func toggleMute()
+  func setDeviceScalar(_ value: Double, on id: AudioDeviceID)
+  func setDeviceMuted(_ muted: Bool, on id: AudioDeviceID)
   func stop()
 }
 
@@ -73,12 +75,14 @@ private enum AudioInputMonitorCommand: Sendable {
   case select(AudioDeviceID)
   case scalar(Double)
   case mute(Bool)
+  case deviceScalar(Double)
+  case deviceMute(Bool)
 
   var error: AudioInputError {
     switch self {
     case .select: .switchFailed
-    case .scalar: .volumeFailed
-    case .mute: .muteFailed
+    case .scalar, .deviceScalar: .volumeFailed
+    case .mute, .deviceMute: .muteFailed
     }
   }
 }
@@ -266,6 +270,28 @@ final class AudioInputMonitor: AudioInputMonitoring {
     // Keep only the latest selection while a HAL operation is in flight.
     queuedCommands.removeAll { if case .select = $0.command { return true }; return false }
     enqueueOrStart(QueuedCommand(command: .select(id), deviceID: id))
+  }
+
+  func setDeviceScalar(_ value: Double, on id: AudioDeviceID) {
+    beginUserAction()
+    guard canAcceptAction, value.isFinite,
+      status.devices.contains(where: { $0.id == id && $0.canSetVolume }) else { return }
+    queuedCommands.removeAll { item in
+      if case .deviceScalar = item.command { return item.deviceID == id }
+      return false
+    }
+    enqueueOrStart(QueuedCommand(command: .deviceScalar(min(1, max(0, value))), deviceID: id))
+  }
+
+  func setDeviceMuted(_ muted: Bool, on id: AudioDeviceID) {
+    beginUserAction()
+    guard canAcceptAction,
+      status.devices.contains(where: { $0.id == id && $0.canSetMute }) else { return }
+    queuedCommands.removeAll { item in
+      if case .deviceMute = item.command { return item.deviceID == id }
+      return false
+    }
+    enqueueOrStart(QueuedCommand(command: .deviceMute(muted), deviceID: id))
   }
 
   func setScalar(_ value: Double) {
@@ -512,6 +538,10 @@ final class AudioInputMonitor: AudioInputMonitoring {
         showError(.switchFailed)
         return
       }
+    } else if case .deviceScalar = command {
+      guard status.devices.contains(where: { $0.id == deviceID && $0.canSetVolume }) else { return }
+    } else if case .deviceMute = command {
+      guard status.devices.contains(where: { $0.id == deviceID && $0.canSetMute }) else { return }
     } else if status.defaultDeviceID != deviceID {
       showError(command.error)
       return
@@ -594,7 +624,10 @@ final class AudioInputMonitor: AudioInputMonitoring {
       return
     }
 
-    if isCurrent, let reading = result.reading, reading.defaultDeviceID == active.deviceID {
+    if active.readGeneration == readGeneration, let reading = result.reading, reading.devices != nil {
+      apply(reading)
+      isDirty = false
+    } else if isCurrent, let reading = result.reading, reading.defaultDeviceID == active.deviceID {
       apply(reading)
       isDirty = false
     } else if case .select = active.command,
@@ -639,6 +672,13 @@ final class AudioInputMonitor: AudioInputMonitoring {
     switch command {
     case let .select(id):
       return reading.defaultDeviceID == id ? nil : .switchFailed
+    case let .deviceScalar(target):
+      guard let device = reading.devices?.first(where: { $0.id == expectedDeviceID }),
+        let actual = device.scalar, abs(actual - target) <= 0.01 else { return .volumeFailed }
+      return nil
+    case let .deviceMute(target):
+      return reading.devices?.first(where: { $0.id == expectedDeviceID })?.muteState
+        == (target ? .muted : .unmuted) ? nil : .muteFailed
     case let .scalar(target):
       guard reading.defaultDeviceID == expectedDeviceID,
         reading.canSetVolume,
@@ -925,9 +965,9 @@ private final class AudioInputWorker: @unchecked Sendable {
         switch command {
         case let .select(id):
           try self.hardware.selectDefault(id)
-        case let .scalar(value):
+        case let .scalar(value), let .deviceScalar(value):
           try self.hardware.setScalar(value, on: deviceID)
-        case let .mute(value):
+        case let .mute(value), let .deviceMute(value):
           try self.hardware.setMuted(value, on: deviceID)
         }
       } catch {
@@ -941,7 +981,12 @@ private final class AudioInputWorker: @unchecked Sendable {
       var readError: AudioInputHardwareError?
       var observationError: AudioInputHardwareError?
       do {
-        reading = try self.hardware.read(includeDevices: false)
+        let includeDevices: Bool
+        switch command {
+        case .deviceScalar, .deviceMute: includeDevices = true
+        default: includeDevices = false
+        }
+        reading = try self.hardware.read(includeDevices: includeDevices)
         guard sessionGate.isActive else { return }
       } catch {
         guard sessionGate.isActive else { return }

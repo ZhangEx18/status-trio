@@ -12,6 +12,8 @@ protocol AudioInputPropertyClient: Sendable {
   func inputChannels(_ id: AudioDeviceID) -> Int
   func name(_ id: AudioDeviceID) -> String?
   func uid(_ id: AudioDeviceID) -> String?
+  func iconURL(_ id: AudioDeviceID) -> URL?
+  func transport(_ id: AudioDeviceID) -> UInt32?
   func hasProperty(
     _ id: AudioDeviceID,
     _ selector: AudioObjectPropertySelector,

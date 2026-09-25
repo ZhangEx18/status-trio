@@ -11,6 +11,8 @@ struct VolumeControlsView: View {
     let onSelectOutputDevice: (AudioOutputDevice) -> Void
     let onOpenSoundSettings: () -> Void
 
+    var onEditingChanged: (Bool) -> Void = { _ in }
+
     @State private var draftVolume = 0.0
     @State private var isAdjusting = false
 
@@ -46,7 +48,10 @@ struct VolumeControlsView: View {
                 .accessibilityLabel(volume.isMuted ? localization.string(.volumeUnmuted) : localization.string(.volumeMuted))
 
                 Slider(
-                    value: $draftVolume,
+                    value: Binding(get: { draftVolume }, set: { value in
+                        draftVolume = value
+                        updateVolume(value)
+                    }),
                     in: 0...1,
                     onEditingChanged: { handleVolumeEditing($0) }
                 )
@@ -75,10 +80,8 @@ struct VolumeControlsView: View {
                 )
             }
         }
+        .onDisappear { if isAdjusting { onEditingChanged(false) } }
         .onAppear(perform: { synchronizeVolume() })
-        .onChange(of: draftVolume) { _, newValue in
-            updateVolume(newValue)
-        }
         .onChange(of: volume.scalar) { _, _ in
             guard !isAdjusting else { return }
             synchronizeVolume()
@@ -111,6 +114,7 @@ struct VolumeControlsView: View {
 
     private func handleVolumeEditing(_ isEditing: Bool) {
         isAdjusting = isEditing
+        onEditingChanged(isEditing)
     }
 
     private func updateVolume(_ newValue: Double) {

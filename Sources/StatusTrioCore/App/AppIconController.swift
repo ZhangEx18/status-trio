@@ -23,7 +23,7 @@ final class AppIconController {
         _ backgroundStyle: DockIconBackgroundStyle
     ) -> NSImage?
 
-    static let snapshotDebounceInterval: TimeInterval = 0.5
+    static let snapshotThrottleInterval: TimeInterval = 1.0 / 30.0
 
     private let store: SystemStatusStore
     private let settings: SettingsStore
@@ -150,9 +150,10 @@ final class AppIconController {
             .map { MenuBarStatus(snapshot: $0) }
             .removeDuplicates()
             .dropFirst()
-            .debounce(
-                for: .seconds(Self.snapshotDebounceInterval),
-                scheduler: RunLoop.main
+            .throttle(
+                for: .seconds(Self.snapshotThrottleInterval),
+                scheduler: RunLoop.main,
+                latest: true
             )
             .sink { [weak self] _ in
                 self?.renderLatestDockIcon()

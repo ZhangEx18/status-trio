@@ -352,6 +352,20 @@ final class SystemStatusStore: ObservableObject {
         volumeController != nil && liveVolume.scalar != nil
     }
 
+    private var isEditingVolume = false
+    private var volumeChangedDuringEditing = false
+
+    func setVolumeEditing(_ editing: Bool) {
+        guard editing != isEditingVolume else { return }
+        isEditingVolume = editing
+        if editing {
+            volumeChangedDuringEditing = false
+        } else if volumeChangedDuringEditing {
+            volumeChangedDuringEditing = false
+            if !hasStopped { volumeFeedback?.playVolumeChangeFeedback() }
+        }
+    }
+
     func setVolume(_ scalar: Double) {
         guard !hasStopped,
               volumeController != nil,
@@ -368,7 +382,8 @@ final class SystemStatusStore: ObservableObject {
         // from here. Clamping makes a scroll past either end ask for the same
         // scalar again, and that repeat must stay silent.
         if previousScalar != liveVolume.scalar {
-            volumeFeedback?.playVolumeChangeFeedback()
+            if isEditingVolume { volumeChangedDuringEditing = true }
+            else { volumeFeedback?.playVolumeChangeFeedback() }
         }
     }
 
@@ -607,6 +622,16 @@ final class SystemStatusStore: ObservableObject {
     func selectInputDevice(_ id: AudioDeviceID) {
         guard !hasStopped else { return }
         inputMonitor?.select(id)
+    }
+
+    func setInputDeviceScalar(_ value: Double, on id: AudioDeviceID) {
+        guard !hasStopped else { return }
+        inputMonitor?.setDeviceScalar(value, on: id)
+    }
+
+    func setInputDeviceMuted(_ value: Bool, on id: AudioDeviceID) {
+        guard !hasStopped else { return }
+        inputMonitor?.setDeviceMuted(value, on: id)
     }
 
     func setInputScalar(_ value: Double) {

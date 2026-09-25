@@ -213,6 +213,7 @@ final class BatteryMonitor: BatteryMonitoring {
                 isPresent: true,
                 isCharging: reading.isCharging,
                 isCharged: reading.isCharged || reachedLimit,
+                chargeLimit: reading.chargeLimit,
                 timeToFullChargeMinutes: reading.isCharging
                     ? reading.timeToFullChargeMinutes
                     : nil,
