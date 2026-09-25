@@ -26,6 +26,10 @@
 	<true/>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Used only when you open Bluetooth details to show paired-device connection status.</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>Used to control audio levels for individual apps when you enable App Audio.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Used only for App Audio processing when you enable per-App audio control.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSLocationUsageDescription</key>

@@ -14,6 +14,7 @@ final class AppEnvironment {
     let mainMenuController: MainMenuController
     let chargingEffectClock: ChargingEffectClock
     let chargingEffectMotionMonitor: ChargingEffectMotionMonitor
+    let perAppAudioController: PerAppAudioController
 
     private var chargingEffectCancellables = Set<AnyCancellable>()
 
@@ -28,7 +29,8 @@ final class AppEnvironment {
         appIconController: AppIconController,
         mainMenuController: MainMenuController,
         chargingEffectClock: ChargingEffectClock,
-        chargingEffectMotionMonitor: ChargingEffectMotionMonitor
+        chargingEffectMotionMonitor: ChargingEffectMotionMonitor,
+        perAppAudioController: PerAppAudioController
     ) {
         self.store = store
         self.settings = settings
@@ -41,6 +43,7 @@ final class AppEnvironment {
         self.mainMenuController = mainMenuController
         self.chargingEffectClock = chargingEffectClock
         self.chargingEffectMotionMonitor = chargingEffectMotionMonitor
+        self.perAppAudioController = perAppAudioController
     }
 
     func start() {
@@ -52,6 +55,7 @@ final class AppEnvironment {
         subscribeToChargingEffectInputs()
         mainMenuController.start()
         appIconController.start()
+        perAppAudioController.start()
         store.bindInputSettings(settings)
         store.start()
     }
@@ -63,6 +67,7 @@ final class AppEnvironment {
         chargingEffectCancellables.removeAll()
         appIconController.stop()
         mainMenuController.stop()
+        perAppAudioController.stop()
         store.stop()
     }
 
@@ -129,18 +134,27 @@ final class AppEnvironment {
 
     static func live() -> AppEnvironment {
         let settings = SettingsStore()
+        let outputController = CoreAudioOutputController()
         let store = makeStore(
             batteryMonitor: BatteryMonitor(),
             wifiMonitor: WiFiMonitor(),
             connectionMonitor: NetworkConnectionMonitor(),
             vpnMonitor: VPNMonitor(),
-            volumeMonitor: VolumeMonitor(outputController: CoreAudioOutputController()),
+            volumeMonitor: VolumeMonitor(outputController: outputController),
             inputMonitor: AudioInputMonitor(hardware: CoreAudioInputHardware()),
             refreshInterval: settings.refreshInterval
         )
         let localization = Localization()
         let chargingEffectClock = ChargingEffectClock()
         let chargingEffectMotionMonitor = ChargingEffectMotionMonitor()
+        let audioCapturePermission = AudioCapturePermissionController()
+        let perAppAudioController = PerAppAudioController(
+            tapManager: CoreAudioProcessTapManager(
+                outputController: outputController,
+                permission: audioCapturePermission
+            ),
+            permission: audioCapturePermission
+        )
         let activationPolicy = AppActivationPolicy()
         let onboardingWindowController = OnboardingWindowController(
             settings: settings,
@@ -164,6 +178,7 @@ final class AppEnvironment {
             store: store,
             settings: settings,
             localization: localization,
+            perAppAudioController: perAppAudioController,
             isVisible: settings.appIconPlacement.showsMenuBarIcon,
             openSettings: { settingsWindowController.show() },
             quitAction: { NSApplication.shared.terminate(nil) },
@@ -209,7 +224,8 @@ final class AppEnvironment {
             appIconController: appIconController,
             mainMenuController: mainMenuController,
             chargingEffectClock: chargingEffectClock,
-            chargingEffectMotionMonitor: chargingEffectMotionMonitor
+            chargingEffectMotionMonitor: chargingEffectMotionMonitor,
+            perAppAudioController: perAppAudioController
         )
     }
 }

@@ -27,6 +27,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private let store: SystemStatusStore
     private let settings: SettingsStore
     private let localization: Localization
+    private let perAppAudioController: PerAppAudioController
     let chargingEffectClock: ChargingEffectClock
     private var cancellable: AnyCancellable?
     private var localizationCancellable: AnyCancellable?
@@ -66,6 +67,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         store: SystemStatusStore,
         settings: SettingsStore,
         localization: Localization,
+        perAppAudioController: PerAppAudioController,
         isVisible: Bool = true,
         openSettings: @escaping () -> Void,
         quitAction: @escaping () -> Void,
@@ -74,6 +76,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         self.store = store
         self.settings = settings
         self.localization = localization
+        self.perAppAudioController = perAppAudioController
         self.chargingEffectClock = chargingEffectClock
         self.openSettings = openSettings
         self.quitAction = quitAction
@@ -233,6 +236,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             StatusPopoverView(
                 store: store,
                 settings: settings,
+                perAppAudioController: perAppAudioController,
                 scrollTargets: popoverScrollTargets,
                 requestWiFiNameAccess: { self.handleRequestWiFiNameAccess() },
                 requestBluetoothAuthorization: { self.handleRequestBluetoothAuthorization() },
