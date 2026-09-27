@@ -38,6 +38,7 @@ final class BatteryTelemetryRecorder: @unchecked Sendable {
         let estimatorSelectedRate: Double?
         let estimatorReservePercent: Double?
         let estimatorUsedSystemEstimate: Bool?
+        let estimatorChargingThermalThrottled: Bool?
         let estimatorPredictionMethod: String?
         let estimatorCompletedBandObservationCount: Int
         let estimatorRecentCorrectionFactor: Double?
@@ -144,6 +145,7 @@ final class BatteryTelemetryRecorder: @unchecked Sendable {
                 estimatorSelectedRate: diagnostics.selectedRate,
                 estimatorReservePercent: diagnostics.reservePercent,
                 estimatorUsedSystemEstimate: diagnostics.usedSystemEstimate,
+                estimatorChargingThermalThrottled: diagnostics.chargingThermalThrottled,
                 estimatorPredictionMethod: diagnostics.predictionMethod,
                 estimatorCompletedBandObservationCount: diagnostics.completedBandObservationCount,
                 estimatorRecentCorrectionFactor: diagnostics.recentCorrectionFactor,

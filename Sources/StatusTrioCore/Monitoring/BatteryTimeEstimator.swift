@@ -14,6 +14,7 @@ struct BatteryTimeEstimator {
         var selectedRate: Double?
         var reservePercent: Double?
         var usedSystemEstimate = false
+        var chargingThermalThrottled = false
         var missingChargeBandStartPercent: Double?
         var completedBandObservationCount = 0
         var recentCorrectionFactor: Double?
@@ -39,7 +40,7 @@ struct BatteryTimeEstimator {
     }
 
     struct Sample: Codable, Equatable {
-        enum Source: String, Codable { case iops, legacy }
+        enum Source: String, Codable { case iops, legacy, thermal }
         let date: Date
         let percentage: Double
         let charging: Bool
@@ -212,28 +213,34 @@ struct BatteryTimeEstimator {
         }
         let segment = (last?.segment ?? 0) + (boundary ? 1 : 0)
         nextSampleStartsSegment = false
-        let sample = Sample(date: date, percentage: percentage, charging: charging,
-                            target: normalizedTarget, connectedToPower: connected, segment: segment)
-        samples.append(sample)
-        samples.removeAll { date.timeIntervalSince($0.date) > Self.persistenceHorizon }
-        if samples.count > Self.maximumPersistedSamples {
-            samples.removeFirst(samples.count - Self.maximumPersistedSamples)
-        }
-        guard mode != .idle else { return nil }
-
         let hadChargingReference = chargingReferenceMinutesPerPoint != nil
+        var thermalThrottled = false
         if mode == .charging,
            let target = normalizedTarget,
            let systemMinutes,
            systemMinutes > 0,
            target > percentage {
             let candidate = Double(systemMinutes) / (target - percentage)
-            let previous = chargingReferenceMinutesPerPoint
+            if let previous = chargingReferenceMinutesPerPoint,
+               candidate.isFinite,
+               candidate > previous * 1.5 {
+                thermalThrottled = true
+            }
             if candidate.isFinite, (0.05...30).contains(candidate),
-               previous.map({ candidate <= $0 * 1.5 }) ?? true {
+               chargingReferenceMinutesPerPoint.map({ candidate <= $0 * 1.5 }) ?? true {
                 chargingReferenceMinutesPerPoint = candidate
             }
         }
+        diagnostics.chargingThermalThrottled = thermalThrottled
+        let sample = Sample(date: date, percentage: percentage, charging: charging,
+                            target: normalizedTarget, connectedToPower: connected, segment: segment,
+                            source: thermalThrottled ? .thermal : .iops)
+        samples.append(sample)
+        samples.removeAll { date.timeIntervalSince($0.date) > Self.persistenceHorizon }
+        if samples.count > Self.maximumPersistedSamples {
+            samples.removeFirst(samples.count - Self.maximumPersistedSamples)
+        }
+        guard mode != .idle else { return nil }
 
         let bands = completedBands(mode: mode, target: normalizedTarget)
         diagnostics.completedBandObservationCount = bands.count
@@ -264,7 +271,9 @@ struct BatteryTimeEstimator {
             diagnostics.validRateCount = baselineRates.count
             let baseline = weightedMedian(baselineRates, now: date)
             diagnostics.baselineRate = baseline
+            let liveIntervals = recentDischargeIntervals(date: date, segment: segment)
             let recent = recentRate(rates, date: date, segment: segment)
+                ?? liveIntervals.last?.value
             diagnostics.recentRate = recent
             if let baseline {
                 updateDischargeState(baseline: baseline, date: date, segment: segment)
@@ -368,7 +377,8 @@ struct BatteryTimeEstimator {
                 let duration = end.date.timeIntervalSince(start.date)
                 let drop = start.percentage - end.percentage
                 if duration >= 30, duration <= 10 * 60,
-                   (0.5...2.5).contains(drop),
+                   (0.25...4.0).contains(drop),
+                   hasContinuousSamples(current, from: startIndex, through: endIndex),
                    date.timeIntervalSince(end.date) <= 45 * 60 {
                     result.append(Rate(value: drop / (duration / 60),
                                        duration: duration,
@@ -387,6 +397,17 @@ struct BatteryTimeEstimator {
             if startIndex == endIndex - 1 { break }
         }
         return result.reversed()
+    }
+
+    private func hasContinuousSamples(_ samples: [Sample], from start: Int,
+                                      through end: Int) -> Bool {
+        guard start < end else { return true }
+        for index in (start + 1)...end {
+            if samples[index].date.timeIntervalSince(samples[index - 1].date) > Self.maximumGap {
+                return false
+            }
+        }
+        return true
     }
 
     private mutating func updateDischargeState(baseline: Double,
@@ -410,7 +431,9 @@ struct BatteryTimeEstimator {
                                            recent: Double?) -> Double {
         let usable = max(0, percentage - reserve)
         guard usable > 0 else { return 0 }
-        let near = min(Self.dynamicHorizonPercent, usable)
+        let horizon = dischargeStateMachine.state == .transient
+            ? 2.0 : Self.dynamicHorizonPercent
+        let near = min(horizon, usable)
         let nearRate = selectedDischargeRate(baseline: baseline, recent: recent)
         let farRate = baseline
         let nearMinutes = near / max(Self.minimumRate, nearRate)
@@ -522,21 +545,41 @@ struct BatteryTimeEstimator {
         guard mode != .idle else { return [] }
         var result: [Rate] = []
         var anchor: Sample?
+        var previous: Sample?
         for sample in samples {
             guard sample.mode == mode, sample.target == target else {
                 anchor = nil
+                previous = nil
                 continue
+            }
+            if let previous,
+               sample.date.timeIntervalSince(previous.date) > Self.maximumGap {
+                anchor = sample
             }
             guard let start = anchor else {
                 anchor = sample
+                previous = sample
+                continue
+            }
+            if start.date == sample.date {
+                previous = sample
                 continue
             }
             let duration = sample.date.timeIntervalSince(start.date)
             let change = mode == .charging
                 ? sample.percentage - start.percentage
                 : start.percentage - sample.percentage
-            guard duration >= 5 * 60 else { continue }
+            if change <= 0 {
+                anchor = sample
+                previous = sample
+                continue
+            }
+            guard duration >= 5 * 60 else {
+                previous = sample
+                continue
+            }
             guard change > 3, (Self.minimumRate...2).contains(change / (duration / 60)) else {
+                previous = sample
                 continue
             }
             result.append(Rate(value: change / (duration / 60),
@@ -545,6 +588,7 @@ struct BatteryTimeEstimator {
                                segment: sample.segment,
                                midpoint: (start.percentage + sample.percentage) / 2))
             anchor = sample
+            previous = sample
         }
         return result
     }
@@ -770,7 +814,8 @@ struct BatteryTimeEstimator {
         let recentMinutesPerPoint = 1 / recent
         let stateWeight = dischargeStateMachine.weight(
             forDistance: travelled,
-            horizon: Self.dynamicHorizonPercent
+            horizon: dischargeStateMachine.state == .transient
+                ? 2 : Self.dynamicHorizonPercent
         )
         let minutesPerPoint = baseMinutesPerPoint * (1 - stateWeight)
             + recentMinutesPerPoint * stateWeight
