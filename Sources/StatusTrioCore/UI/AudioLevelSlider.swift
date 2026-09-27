@@ -49,6 +49,7 @@ struct AudioLevelSlider: View {
             }
         }
         .focusable(isEnabled)
+        .focusEffectDisabled()
         .onKeyPress(.leftArrow) { guard isEnabled else { return .ignored }; value = max(0, value - 0.05); return .handled }
         .onKeyPress(.rightArrow) { guard isEnabled else { return .ignored }; value = min(1, value + 0.05); return .handled }
     }
