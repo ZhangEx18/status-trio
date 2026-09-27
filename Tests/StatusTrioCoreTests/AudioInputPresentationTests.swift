@@ -259,6 +259,18 @@ final class AudioInputPresentationTests: XCTestCase {
         XCTAssertEqual(requests, [0.6])
     }
 
+    func testVolumeDraftUsesPendingValueForDisplayUntilReadbackCompletes() {
+        var draft = AudioInputVolumeDraft()
+        draft.receiveSystemScalar(0.8)
+        draft.setEditing(true)
+        draft.setSliderValue(0.2, systemScalar: 0.8)
+        draft.finishEditing(systemScalar: 0.8) { _ in }
+
+        XCTAssertEqual(draft.displayedScalar(systemScalar: 0.8), 0.2, accuracy: 0.0001)
+        draft.completeReadback(0.2)
+        XCTAssertEqual(draft.displayedScalar(systemScalar: 0.2), 0.2, accuracy: 0.0001)
+    }
+
     private func makeStatus(
         devices: [AudioInputDevice] = [],
         defaultDeviceID: AudioDeviceID? = nil,

@@ -202,6 +202,13 @@ struct AudioInputVolumeDraft {
         )
     }
 
+    func displayedScalar(systemScalar: Double?) -> Double {
+        if isEditing || isAwaitingReadback {
+            return value
+        }
+        return Self.displayValue(for: systemScalar)
+    }
+
     private static func displayValue(for scalar: Double?) -> Double {
         guard let scalar, scalar.isFinite, (0...1).contains(scalar) else { return 0 }
         return scalar
@@ -218,6 +225,7 @@ struct AudioInputControlsView: View {
     let onOpenSoundSettings: () -> Void
 
     @State private var volumeDraft = AudioInputVolumeDraft()
+    @State private var sliderEditingToken = UUID()
 
     private var presentation: AudioInputPresentation {
         AudioInputPresentation(status: status, locale: localization.resolvedLanguage.locale)
@@ -328,7 +336,9 @@ struct AudioInputControlsView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .help(defaultDeviceName)
                 Text(localization.format(.commonLabelValue,
-                    localization.string(.audioInputVolume), presentation.visibleVolumeValue))
+                    localization.string(.audioInputVolume),
+                    volumeDraft.displayedScalar(systemScalar: status.scalar)
+                        .formatted(.percent.precision(.fractionLength(0)).locale(localization.resolvedLanguage.locale))))
                     .font(.subheadline)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
@@ -382,12 +392,19 @@ struct AudioInputControlsView: View {
                     value: sliderValue,
                     in: 0...1,
                     onEditingChanged: { editing in
-                        if !editing {
+                        if editing {
+                            sliderEditingToken = UUID()
+                            volumeDraft.setEditing(true)
+                            return
+                        }
+
+                        let token = sliderEditingToken
+                        Task { @MainActor in
+                            await Task.yield()
+                            guard token == sliderEditingToken else { return }
                             volumeDraft.finishEditing(systemScalar: status.scalar) { value in
                                 onScalarChange(value)
                             }
-                        } else {
-                            volumeDraft.setEditing(true)
                         }
                     }
                 )
@@ -504,7 +521,9 @@ struct AudioInputControlsView: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                Text((isCurrent ? status.scalar : device.scalar).map {
+                Text((isCurrent
+                    ? volumeDraft.displayedScalar(systemScalar: status.scalar)
+                    : device.scalar).map {
                     $0.formatted(.percent.precision(.fractionLength(0)).locale(localization.resolvedLanguage.locale))
                 } ?? "—")
                 .font(.caption.monospacedDigit())
