@@ -3,7 +3,7 @@ import XCTest
 @testable import StatusTrioCore
 
 final class AudioInputPresentationTests: XCTestCase {
-    func testOrderedKeepsDevicePositionsStableAcrossSelection() {
+    func testOrderedPlacesCurrentDeviceFirstAndSortsRemainingDevices() {
         let builtIn = AudioInputDevice(id: AudioDeviceID(12), uid: "built-in", name: "Built-in")
         let usb = AudioInputDevice(id: AudioDeviceID(4), uid: "usb", name: "USB")
         let lowerAlpha = AudioInputDevice(id: AudioDeviceID(8), uid: "lower", name: "alpha")
@@ -16,7 +16,7 @@ final class AudioInputPresentationTests: XCTestCase {
             unknownName: "未知输入设备"
         )
 
-        XCTAssertEqual(rows.map(\.id), [upperAlpha.id, lowerAlpha.id, builtIn.id, usb.id])
+        XCTAssertEqual(rows.map(\.id), [usb.id, upperAlpha.id, lowerAlpha.id, builtIn.id])
     }
 
     func testOrderedUsesUnknownNameAndIDForUnnamedDevices() {
@@ -203,7 +203,7 @@ final class AudioInputPresentationTests: XCTestCase {
         var draft = AudioInputVolumeDraft()
         draft.receiveSystemScalar(0.4)
         draft.setEditing(true)
-        draft.setSliderValue(0.8, systemScalar: 0.4) { _ in }
+        draft.setSliderValue(0.8, systemScalar: 0.4)
 
         XCTAssertEqual(
             draft.accessibilityValue(systemScalar: 0.4, locale: locale),
@@ -224,7 +224,7 @@ final class AudioInputPresentationTests: XCTestCase {
         var draft = AudioInputVolumeDraft()
         draft.receiveSystemScalar(0.2)
         draft.setEditing(true)
-        draft.setSliderValue(0.8, systemScalar: 0.2) { _ in }
+        draft.setSliderValue(0.8, systemScalar: 0.2)
 
         draft.receiveSystemScalar(0.4)
         XCTAssertEqual(draft.value, 0.8, accuracy: 0.0001)
@@ -234,27 +234,29 @@ final class AudioInputPresentationTests: XCTestCase {
         XCTAssertEqual(draft.value, 0.4, accuracy: 0.0001)
 
         // A delayed slider setter after mouse-up must not restore the rejected draft.
-        draft.setSliderValue(0.8, systemScalar: 0.4) { _ in }
+        draft.setSliderValue(0.8, systemScalar: 0.4)
         XCTAssertEqual(draft.value, 0.4, accuracy: 0.0001)
     }
 
-    func testVolumeDraftDispatchesOnlyAcceptedEditsThroughSliderCallback() {
+    func testVolumeDraftCommitsLatestAcceptedEditOnlyAfterDragEnds() {
         var draft = AudioInputVolumeDraft()
         var requests: [Double] = []
         draft.receiveSystemScalar(0.2)
         draft.setEditing(true)
 
-        draft.setSliderValue(0.8, systemScalar: 0.2) { requests.append($0) }
-        XCTAssertEqual(requests, [0.8])
+        draft.setSliderValue(0.8, systemScalar: 0.2)
+        draft.setSliderValue(0.6, systemScalar: 0.2)
+        XCTAssertTrue(requests.isEmpty)
 
         draft.receiveSystemScalar(0.4)
-        draft.setEditing(false)
-        XCTAssertEqual(draft.value, 0.4, accuracy: 0.0001)
+        draft.finishEditing(systemScalar: 0.4) { requests.append($0) }
+        XCTAssertEqual(requests, [0.6])
+        XCTAssertEqual(draft.value, 0.6, accuracy: 0.0001)
 
         // The same callback path used by the Binding must not re-submit a stale value.
-        draft.setSliderValue(0.8, systemScalar: 0.4) { requests.append($0) }
-        XCTAssertEqual(draft.value, 0.4, accuracy: 0.0001)
-        XCTAssertEqual(requests, [0.8])
+        draft.setSliderValue(0.8, systemScalar: 0.4)
+        XCTAssertEqual(draft.value, 0.6, accuracy: 0.0001)
+        XCTAssertEqual(requests, [0.6])
     }
 
     private func makeStatus(

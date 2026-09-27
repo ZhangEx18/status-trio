@@ -48,6 +48,7 @@ private final class AudioTapSession: @unchecked Sendable {
     let tapID: AudioObjectID
     let aggregateID: AudioObjectID
     let outputDeviceUIDs: [String]
+    let followsSystemDefault: Bool
     var ioProcID: AudioDeviceIOProcID?
     nonisolated(unsafe) var gain: Float
     nonisolated(unsafe) var volume: Double = PerAppAudioSettings.defaultVolume
@@ -58,6 +59,7 @@ private final class AudioTapSession: @unchecked Sendable {
         tapID: AudioObjectID,
         aggregateID: AudioObjectID,
         outputDeviceUIDs: [String],
+        followsSystemDefault: Bool,
         volume: Double,
         isMuted: Bool
     ) {
@@ -65,6 +67,7 @@ private final class AudioTapSession: @unchecked Sendable {
         self.tapID = tapID
         self.aggregateID = aggregateID
         self.outputDeviceUIDs = outputDeviceUIDs
+        self.followsSystemDefault = followsSystemDefault
         self.volume = volume
         self.isMuted = isMuted
         self.gain = AudioTapBufferProcessor.gain(volume: volume, muted: isMuted)
@@ -142,16 +145,19 @@ private func audioTapIOProc(
 final class CoreAudioProcessTapManager: ProcessTapManaging {
     private let outputController: CoreAudioOutputController
     private let permission: AudioCapturePermissionController
+    private let eventMonitor: any VolumeEventMonitoring
     private var apps: [String: AudioAppDescriptor] = [:]
     private var sessions: [String: AudioTapSession] = [:]
     private var isStarted = false
 
     init(
         outputController: CoreAudioOutputController? = nil,
-        permission: AudioCapturePermissionController? = nil
+        permission: AudioCapturePermissionController? = nil,
+        eventMonitor: (any VolumeEventMonitoring)? = nil
     ) {
         self.outputController = outputController ?? CoreAudioOutputController()
         self.permission = permission ?? AudioCapturePermissionController()
+        self.eventMonitor = eventMonitor ?? CoreAudioVolumeEventMonitor()
     }
 
     func updateApps(_ apps: [AudioAppDescriptor]) {
@@ -171,11 +177,16 @@ final class CoreAudioProcessTapManager: ProcessTapManaging {
 
     func start() {
         isStarted = true
+        eventMonitor.start(
+            onDefaultDeviceChange: { [weak self] in self?.defaultOutputDeviceDidChange() },
+            onVolumeChange: {}
+        )
     }
 
     func stop() {
         guard isStarted else { return }
         isStarted = false
+        eventMonitor.stop()
         for session in sessions.values {
             session.stop()
         }
@@ -298,6 +309,7 @@ final class CoreAudioProcessTapManager: ProcessTapManaging {
             tapID: tapID,
             aggregateID: aggregateID,
             outputDeviceUIDs: selectedUIDs,
+            followsSystemDefault: requestedOutputDeviceUIDs == nil,
             volume: initialVolume,
             isMuted: initialMuted
         )
@@ -321,6 +333,24 @@ final class CoreAudioProcessTapManager: ProcessTapManaging {
 
         sessions[app.id] = session
         return session
+    }
+
+    private func defaultOutputDeviceDidChange() {
+        guard isStarted else { return }
+        let affected = sessions.compactMap { identifier, session -> (String, AudioAppDescriptor, AudioTapSession)? in
+            guard session.followsSystemDefault, let app = apps[identifier] else { return nil }
+            return (identifier, app, session)
+        }
+        for (identifier, app, session) in affected {
+            sessions.removeValue(forKey: identifier)
+            session.stop()
+            _ = try? self.session(
+                for: app,
+                initialVolume: session.volume,
+                initialMuted: session.isMuted,
+                outputDeviceUIDs: nil
+            )
+        }
     }
 
     private func supportsFloat32InputFormat(for deviceID: AudioObjectID) -> Bool {

@@ -3,6 +3,15 @@ import XCTest
 
 @MainActor
 final class PerAppAudioControllerTests: XCTestCase {
+    func testProcessTapManagerSubscribesToDefaultOutputChanges() {
+        let monitor = RecordingVolumeEventMonitor()
+        let manager = CoreAudioProcessTapManager(eventMonitor: monitor)
+        manager.start()
+        XCTAssertTrue(monitor.started)
+        manager.stop()
+        XCTAssertTrue(monitor.stopped)
+    }
+
     func testIdleAppSettingsWaitForAudioProcessAndApplyWhenItAppears() async {
         let monitor = FakeAudioProcessMonitor()
         let taps = RecordingProcessTapManager()
@@ -101,6 +110,23 @@ final class PerAppAudioControllerTests: XCTestCase {
         let name = "PerAppAudioControllerTests.\(UUID().uuidString)"
         return UserDefaults(suiteName: name)!
     }
+}
+
+@MainActor
+private final class RecordingVolumeEventMonitor: VolumeEventMonitoring {
+    private(set) var started = false
+    private(set) var stopped = false
+
+    func start(
+        onDefaultDeviceChange: @escaping @MainActor @Sendable () -> Void,
+        onVolumeChange: @escaping @MainActor @Sendable () -> Void
+    ) {
+        started = true
+    }
+
+    func reconcile() {}
+    func recover() {}
+    func stop() { stopped = true }
 }
 
 @MainActor

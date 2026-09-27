@@ -18,6 +18,9 @@ struct AudioInputPresentation {
         unknownName: String
     ) -> [AudioInputDevice] {
         devices.sorted { lhs, rhs in
+            if (lhs.id == currentID) != (rhs.id == currentID) {
+                return lhs.id == currentID
+            }
             let comparison = displayName(for: lhs, unknownName: unknownName)
                 .compare(
                     displayName(for: rhs, unknownName: unknownName),
@@ -139,11 +142,12 @@ struct AudioInputPresentation {
 struct AudioInputVolumeDraft {
     private(set) var value = 0.0
     private(set) var isEditing = false
+    private(set) var isAwaitingReadback = false
     private var latestSystemScalar: Double?
 
     mutating func receiveSystemScalar(_ scalar: Double?) {
         latestSystemScalar = scalar
-        guard !isEditing else { return }
+        guard !isEditing, !isAwaitingReadback else { return }
         value = Self.displayValue(for: scalar)
     }
 
@@ -154,21 +158,37 @@ struct AudioInputVolumeDraft {
         }
     }
 
+    mutating func finishEditing(systemScalar: Double?, onScalarChange: (Double) -> Void) {
+        guard isEditing else { return }
+        isEditing = false
+        guard let systemScalar, systemScalar.isFinite, (0...1).contains(systemScalar),
+              abs(value - systemScalar) >= 0.0005 else {
+            receiveSystemScalar(systemScalar)
+            return
+        }
+        isAwaitingReadback = true
+        onScalarChange(value)
+    }
+
+    mutating func completeReadback(_ scalar: Double?) {
+        guard isAwaitingReadback else { return }
+        isAwaitingReadback = false
+        receiveSystemScalar(scalar)
+    }
+
     mutating func setSliderValue(
         _ newValue: Double,
-        systemScalar: Double?,
-        onScalarChange: (Double) -> Void
+        systemScalar: Double?
     ) {
         guard isEditing, newValue.isFinite,
               let systemScalar, systemScalar.isFinite,
               (0...1).contains(systemScalar) else { return }
         value = min(1, max(0, newValue))
-        guard abs(value - Self.displayValue(for: systemScalar)) >= 0.0005 else { return }
-        onScalarChange(value)
     }
 
     mutating func resetForDevice(_ scalar: Double?) {
         isEditing = false
+        isAwaitingReadback = false
         receiveSystemScalar(scalar)
     }
 
@@ -176,7 +196,7 @@ struct AudioInputVolumeDraft {
         guard let systemScalar, systemScalar.isFinite, (0...1).contains(systemScalar) else {
             return "—"
         }
-        let displayedValue = isEditing ? value : systemScalar
+        let displayedValue = isEditing || isAwaitingReadback ? value : systemScalar
         return displayedValue.formatted(
             .percent.precision(.fractionLength(0)).locale(locale)
         )
@@ -283,6 +303,9 @@ struct AudioInputControlsView: View {
         .onChange(of: status.scalar) { _, newScalar in
             volumeDraft.receiveSystemScalar(newScalar)
         }
+        .onChange(of: status.isBusy) { _, busy in
+            if !busy { volumeDraft.completeReadback(status.scalar) }
+        }
     }
 
     private var header: some View {
@@ -360,9 +383,12 @@ struct AudioInputControlsView: View {
                     in: 0...1,
                     onEditingChanged: { editing in
                         if !editing {
-                            volumeDraft.receiveSystemScalar(status.scalar)
+                            volumeDraft.finishEditing(systemScalar: status.scalar) { value in
+                                onScalarChange(value)
+                            }
+                        } else {
+                            volumeDraft.setEditing(true)
                         }
-                        volumeDraft.setEditing(editing)
                     }
                 )
                 .tint(status.muteState == .muted ? Color.secondary : Color.accentColor)
@@ -498,9 +524,7 @@ struct AudioInputControlsView: View {
         Binding(
             get: { presentation.hasReadableVolume ? volumeDraft.value : 0.5 },
             set: { newValue in
-                volumeDraft.setSliderValue(newValue, systemScalar: status.scalar) {
-                    onScalarChange($0)
-                }
+                volumeDraft.setSliderValue(newValue, systemScalar: status.scalar)
             }
         )
     }
