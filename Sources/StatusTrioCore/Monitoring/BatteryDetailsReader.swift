@@ -53,10 +53,17 @@ struct BatteryPowerState: Hashable, Sendable {
         isConnected = battery.isConnectedToPower
         isCharging = battery.isCharging
     }
+
+    init(isPresent: Bool, isConnected: Bool, isCharging: Bool) {
+        self.isPresent = isPresent
+        self.isConnected = isConnected
+        self.isCharging = isCharging
+    }
 }
 
 struct BatteryDetailsReader: Sendable {
-    func read(state: BatteryPowerState, notBefore: Date?) -> BatteryDetails {
+    func read(state: BatteryPowerState, notBefore: Date?,
+              includeSystemPower: Bool = true) -> BatteryDetails {
         let adapter = IOPSCopyExternalPowerAdapterDetails()?.takeRetainedValue() as? [String: Any]
         let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleSmartBattery"))
         var registry: [String: Any] = [:]
@@ -74,7 +81,8 @@ struct BatteryDetailsReader: Sendable {
             state: state,
             now: Date(),
             notBefore: notBefore,
-            systemPower: Self.readsSystemPower(for: state) ? SystemPowerReader().read() : nil
+            systemPower: includeSystemPower && Self.readsSystemPower(for: state)
+                ? SystemPowerReader().read() : nil
         )
     }
 

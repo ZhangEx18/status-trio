@@ -4,6 +4,85 @@ import XCTest
 
 @MainActor
 final class BatteryMonitorTests: XCTestCase {
+    func testChargingTelemetryMatchesPublishedFallback() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BatteryMonitorTelemetryTests-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let recorder = BatteryTelemetryRecorder(directory: directory, powerReader: { _, _ in nil })
+        let monitor = BatteryMonitor(reader: FakeBatteryReader(result: BatteryReading(
+            currentCapacity: 80, maxCapacity: 100, isCharging: true,
+            timeToFullChargeMinutes: 60, chargeLimit: 95, chargeLimitKnown: true,
+            isConnectedToPower: true, isPresent: true)),
+            lowPowerModeProvider: { false }, telemetryRecorder: recorder)
+        monitor.refresh()
+        var iterator = monitor.updates.makeAsyncIterator()
+        let published = await iterator.next()
+        recorder.flush()
+        let file = try XCTUnwrap(FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: nil).first)
+        let line = try XCTUnwrap(Data(contentsOf: file).split(separator: 0x0A).first)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let observation = try decoder.decode(BatteryTelemetryRecorder.Observation.self,
+                                             from: Data(line))
+        XCTAssertEqual(observation.displayedMinutes, published?.timeToFullChargeMinutes)
+        XCTAssertEqual(observation.displayedMinutesSource, "system")
+        XCTAssertEqual(observation.estimatorTargetPercent, 95)
+        monitor.stop()
+    }
+
+    func testRefreshPersistsNewSampleBeforeNextLaunch() {
+        let suite = "BatteryMonitorTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let date = Date(timeIntervalSince1970: 1_000_000)
+        let reading = BatteryReading(currentCapacity: 50, maxCapacity: 100,
+                                     isCharging: false, isConnectedToPower: false, isPresent: true)
+        let first = BatteryMonitor(reader: FakeBatteryReader(result: reading),
+                                   lowPowerModeProvider: { false },
+                                   nowProvider: { date }, defaults: defaults)
+        first.refresh()
+        let data = defaults.data(forKey: "battery.timeEstimator.samples.v1")
+        XCTAssertNotNil(data)
+        let restored = try? JSONDecoder().decode([BatteryTimeEstimator.Sample].self, from: data!)
+        XCTAssertEqual(restored?.count, 1)
+        let second = BatteryMonitor(reader: FakeBatteryReader(result: reading),
+                                    lowPowerModeProvider: { false },
+                                    nowProvider: { date.addingTimeInterval(60) }, defaults: defaults)
+        second.refresh()
+        let updated = defaults.data(forKey: "battery.timeEstimator.samples.v1")!
+        XCTAssertEqual(try? JSONDecoder().decode([BatteryTimeEstimator.Sample].self,
+                                                  from: updated).count, 2)
+        first.stop()
+        second.stop()
+    }
+
+    func testUnknownChargeLimitStaysDistinctFromConfirmedNoLimit() {
+        let suite = "BatteryMonitorTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let date = Date(timeIntervalSince1970: 1_000_000)
+        let reader = FakeBatteryReader(result: BatteryReading(
+            currentCapacity: 60, maxCapacity: 100, isCharging: true,
+            isConnectedToPower: true, isPresent: true))
+        let monitor = BatteryMonitor(reader: reader, lowPowerModeProvider: { false },
+                                     nowProvider: { date }, defaults: defaults)
+        monitor.refresh()
+        let key = "battery.timeEstimator.samples.v1"
+        let unknown = try? JSONDecoder().decode([BatteryTimeEstimator.Sample].self,
+                                                from: defaults.data(forKey: key)!)
+        XCTAssertNil(unknown?.last?.target)
+        reader.result?.chargeLimitKnown = true
+        let next = BatteryMonitor(reader: reader, lowPowerModeProvider: { false },
+                                  nowProvider: { date.addingTimeInterval(60) }, defaults: defaults)
+        next.refresh()
+        let confirmed = try? JSONDecoder().decode([BatteryTimeEstimator.Sample].self,
+                                                  from: defaults.data(forKey: key)!)
+        XCTAssertEqual(confirmed?.last?.target, 100)
+        XCTAssertNotEqual(confirmed?.first?.segment, confirmed?.last?.segment)
+        monitor.stop()
+        next.stop()
+    }
     func testConfiguredCeilingCountsAsFullOnlyOnPower() async {
         for connected in [false, true] {
             let monitor = BatteryMonitor(reader: FakeBatteryReader(result: BatteryReading(
@@ -17,6 +96,20 @@ final class BatteryMonitorTests: XCTestCase {
             XCTAssertEqual(result?.percentage, 95)
             XCTAssertEqual(result?.chargeLimit, 95)
             XCTAssertNil(result?.timeToFullChargeMinutes)
+            monitor.stop()
+        }
+    }
+
+    func testChargeLimitNearTargetAndCalibrationAboveTarget() async {
+        for (percentage, expectedCharged) in [(92, true), (100, false)] {
+            let monitor = BatteryMonitor(reader: FakeBatteryReader(result: BatteryReading(
+                currentCapacity: percentage, maxCapacity: 100, isCharging: false,
+                chargeLimit: 95, isConnectedToPower: true, isPresent: true)),
+                lowPowerModeProvider: { false })
+            monitor.refresh()
+            var iterator = monitor.updates.makeAsyncIterator()
+            let result = await iterator.next()
+            XCTAssertEqual(result?.isCharged, expectedCharged)
             monitor.stop()
         }
     }

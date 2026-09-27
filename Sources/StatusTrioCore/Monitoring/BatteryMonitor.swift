@@ -1,4 +1,5 @@
 import ChargeLimit
+import AppKit
 import Foundation
 import IOKit.ps
 import OSLog
@@ -8,7 +9,7 @@ private let batteryMonitorLogger = Logger(
     category: "battery"
 )
 
-struct BatteryReading: Equatable {
+struct BatteryReading: Equatable, Sendable {
     var currentCapacity: Int
     var maxCapacity: Int
     var isCharging: Bool
@@ -16,6 +17,7 @@ struct BatteryReading: Equatable {
     var timeToFullChargeMinutes: Int? = nil
     var remainingMinutes: Int? = nil
     var chargeLimit: Int? = nil
+    var chargeLimitKnown = false
     var isConnectedToPower: Bool
     var isPresent: Bool
 }
@@ -53,6 +55,7 @@ final class IOPSBatteryReader: BatteryReadingProviding {
             else { continue }
 
             let limit = STReadChargeLimit()
+            reading.chargeLimitKnown = limit >= 0
             reading.chargeLimit = limit > 0 ? Int(limit) : nil
             return reading
         }
@@ -68,6 +71,7 @@ final class IOPSBatteryReader: BatteryReadingProviding {
             let current = integerValue(description[kIOPSCurrentCapacityKey]),
             let maximum = integerValue(description[kIOPSMaxCapacityKey])
         else { return nil }
+        guard current >= 0, maximum >= 0, maximum == 0 || current <= maximum else { return nil }
 
         let rawTimeToFullCharge = integerValue(description[kIOPSTimeToFullChargeKey])
         let timeToFullCharge = rawTimeToFullCharge.flatMap { $0 > 0 ? $0 : nil }
@@ -104,23 +108,47 @@ final class BatteryMonitor: BatteryMonitoring {
     private let continuation: AsyncStream<BatteryStatus>.Continuation
     private let reader: any BatteryReadingProviding
     private let lowPowerModeProvider: () -> Bool
+    private let nowProvider: () -> Date
+    private let defaults: UserDefaults
+    private let notificationCenter: NotificationCenter
+    private let workspaceNotificationCenter: NotificationCenter
+    private static let estimatorSamplesKey = "battery.timeEstimator.samples.v1"
     private let iopsRunLoopSourceFactory: IOPSRunLoopSourceFactory
     nonisolated(unsafe) private var runLoopSource: CFRunLoopSource?
     nonisolated(unsafe) private var lowPowerObserver: NSObjectProtocol?
+    nonisolated(unsafe) private var sleepObserver: NSObjectProtocol?
+    nonisolated(unsafe) private var wakeObserver: NSObjectProtocol?
     nonisolated(unsafe) private var callbackContext: Unmanaged<BatteryCallbackContext>?
     private var lifecycle = Lifecycle.idle
+    private var timeEstimator = BatteryTimeEstimator()
+    private let telemetryRecorder: BatteryTelemetryRecorder?
 
     init(
         reader: any BatteryReadingProviding = IOPSBatteryReader(),
         lowPowerModeProvider: @escaping () -> Bool = {
             ProcessInfo.processInfo.isLowPowerModeEnabled
         },
+        nowProvider: @escaping () -> Date = Date.init,
+        defaults: UserDefaults = .standard,
+        notificationCenter: NotificationCenter = .default,
+        workspaceNotificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
+        telemetryRecorder: BatteryTelemetryRecorder? = nil,
         iopsRunLoopSourceFactory: @escaping IOPSRunLoopSourceFactory = { context, callback in
             IOPSNotificationCreateRunLoopSource(callback, context)?.takeRetainedValue()
         }
     ) {
         self.reader = reader
         self.lowPowerModeProvider = lowPowerModeProvider
+        self.nowProvider = nowProvider
+        self.defaults = defaults
+        self.notificationCenter = notificationCenter
+        self.workspaceNotificationCenter = workspaceNotificationCenter
+        self.telemetryRecorder = telemetryRecorder ?? (reader is IOPSBatteryReader
+            ? BatteryTelemetryRecorder() : nil)
+        if let data = defaults.data(forKey: Self.estimatorSamplesKey),
+           let restored = try? JSONDecoder().decode([BatteryTimeEstimator.Sample].self, from: data) {
+            timeEstimator.restore(restored, now: nowProvider())
+        }
         self.iopsRunLoopSourceFactory = iopsRunLoopSourceFactory
         (updates, continuation) = MonitorStream.make(of: BatteryStatus.self)
     }
@@ -130,7 +158,13 @@ final class BatteryMonitor: BatteryMonitoring {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .defaultMode)
         }
         if let lowPowerObserver {
-            NotificationCenter.default.removeObserver(lowPowerObserver)
+            notificationCenter.removeObserver(lowPowerObserver)
+        }
+        if let sleepObserver {
+            workspaceNotificationCenter.removeObserver(sleepObserver)
+        }
+        if let wakeObserver {
+            workspaceNotificationCenter.removeObserver(wakeObserver)
         }
         if let callbackContext {
             callbackContext.release()
@@ -149,6 +183,10 @@ final class BatteryMonitor: BatteryMonitoring {
     func recover() {
         guard lifecycle == .running else { return }
 
+        // Wake recovery must never let the last pre-sleep sample pair with the
+        // first post-wake sample.  Historical observations stay available to
+        // the baseline, while the live interval starts from scratch.
+        timeEstimator.markDirtyInterval()
         teardownNotifications()
         installNotifications()
     }
@@ -178,13 +216,33 @@ final class BatteryMonitor: BatteryMonitoring {
             )
         }
 
-        lowPowerObserver = NotificationCenter.default.addObserver(
+        lowPowerObserver = notificationCenter.addObserver(
             forName: .NSProcessInfoPowerStateDidChange,
             object: nil,
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.refresh()
+            }
+        }
+
+        sleepObserver = workspaceNotificationCenter.addObserver(
+            forName: NSWorkspace.willSleepNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.timeEstimator.markDirtyInterval()
+            }
+        }
+
+        wakeObserver = workspaceNotificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.timeEstimator.markDirtyInterval()
             }
         }
     }
@@ -200,14 +258,55 @@ final class BatteryMonitor: BatteryMonitoring {
         guard lifecycle != .stopped else { return }
 
         let reading = reader.read()
+        let now = nowProvider()
+        let previousSampleDate = timeEstimator.persistedSamples.last?.date
         let status: BatteryStatus
 
         if let reading, reading.isPresent {
-            let percentage = reading.maxCapacity > 0
-                ? Int((Double(reading.currentCapacity) / Double(reading.maxCapacity) * 100).rounded())
-                : reading.currentCapacity
+            let cleaned = BatteryDataCleaner.clean(
+                currentCapacity: reading.currentCapacity,
+                maxCapacity: reading.maxCapacity,
+                connectedToPower: reading.isConnectedToPower,
+                charging: reading.isCharging,
+                isPresent: reading.isPresent
+            )
+            let exactPercentage = cleaned?.percentage ?? 0
+            let percentage = Int(exactPercentage.rounded())
             let reachedLimit = reading.isConnectedToPower && !reading.isCharging
-                && reading.chargeLimit.map { percentage >= $0 } == true
+                && reading.chargeLimit.map { abs(percentage - $0) <= 3 } == true
+            let chargingTarget = reading.isCharging && (reading.chargeLimitKnown || reading.chargeLimit != nil)
+                ? Double(reading.chargeLimit ?? 100) : nil
+            let estimate: Int?
+            if cleaned?.mode == .charging {
+                estimate = timeEstimator.add(
+                    date: now,
+                    percentage: exactPercentage,
+                    charging: true,
+                    target: chargingTarget,
+                    connectedToPower: true,
+                    systemMinutes: reading.timeToFullChargeMinutes
+                )
+            } else if cleaned?.mode == .discharging {
+                estimate = timeEstimator.add(
+                    date: now,
+                    percentage: exactPercentage,
+                    charging: false,
+                    target: 0,
+                    connectedToPower: false,
+                    systemMinutes: reading.remainingMinutes
+                )
+            } else {
+                estimate = timeEstimator.add(
+                    date: now,
+                    percentage: exactPercentage,
+                    charging: false,
+                    target: nil,
+                    connectedToPower: true
+                )
+            }
+            if previousSampleDate != timeEstimator.persistedSamples.last?.date {
+                persistEstimatorSamples()
+            }
             status = BatteryStatus(
                 rawPercentage: percentage,
                 isPresent: true,
@@ -215,13 +314,27 @@ final class BatteryMonitor: BatteryMonitoring {
                 isCharged: reading.isCharged || reachedLimit,
                 chargeLimit: reading.chargeLimit,
                 timeToFullChargeMinutes: reading.isCharging
-                    ? reading.timeToFullChargeMinutes
+                    ? (estimate ?? reading.timeToFullChargeMinutes)
                     : nil,
-                remainingMinutes: !reading.isConnectedToPower && !reading.isCharging ? reading.remainingMinutes : nil,
+                remainingMinutes: !reading.isConnectedToPower && !reading.isCharging
+                    ? (estimate ?? reading.remainingMinutes) : nil,
                 isLowPowerMode: lowPowerModeProvider(),
                 isConnectedToPower: reading.isConnectedToPower
             )
+            telemetryRecorder?.record(
+                reading,
+                at: now,
+                estimatorMinutes: estimate,
+                displayedMinutes: reading.isCharging
+                    ? status.timeToFullChargeMinutes : status.remainingMinutes,
+                estimatorTargetPercent: chargingTarget,
+                diagnostics: timeEstimator.diagnostics
+            )
         } else {
+            timeEstimator.resetCurrentPrediction()
+            if previousSampleDate != timeEstimator.persistedSamples.last?.date {
+                persistEstimatorSamples()
+            }
             status = BatteryStatus(
                 rawPercentage: nil,
                 isPresent: false,
@@ -236,14 +349,27 @@ final class BatteryMonitor: BatteryMonitoring {
         continuation.yield(status)
     }
 
+    private func persistEstimatorSamples() {
+        guard let data = try? JSONEncoder().encode(timeEstimator.persistedSamples) else { return }
+        defaults.set(data, forKey: Self.estimatorSamplesKey)
+    }
+
     private func teardownNotifications() {
         if let runLoopSource {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .defaultMode)
             self.runLoopSource = nil
         }
         if let lowPowerObserver {
-            NotificationCenter.default.removeObserver(lowPowerObserver)
+            notificationCenter.removeObserver(lowPowerObserver)
             self.lowPowerObserver = nil
+        }
+        if let sleepObserver {
+            workspaceNotificationCenter.removeObserver(sleepObserver)
+            self.sleepObserver = nil
+        }
+        if let wakeObserver {
+            workspaceNotificationCenter.removeObserver(wakeObserver)
+            self.wakeObserver = nil
         }
         if let callbackContext {
             callbackContext.release()
