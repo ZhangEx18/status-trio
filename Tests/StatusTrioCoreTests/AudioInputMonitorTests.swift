@@ -232,7 +232,7 @@ final class AudioInputMonitorTests: XCTestCase {
 
     hardware.setReading(reading(defaultID: 11, scalar: 0.81, muteState: .muted))
     let changed = log.expectStatus("external input-control change is read back") {
-      $0.defaultDeviceID == 11 && $0.scalar == 0.81 && $0.muteState == .muted
+      $0.defaultDeviceID == 11 && $0.scalar == 0.81 && $0.muteState == .muted && !$0.isRefreshing
     }
     observation.emit(.controlsChanged)
     await fulfillment(of: [changed], timeout: 5)

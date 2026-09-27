@@ -387,7 +387,7 @@ final class AudioInputMonitor: AudioInputMonitoring {
   ) {
     guard isEnabled, !isStopped, expected == sessionGeneration else { return }
     switch event {
-    case .devicesChanged, .defaultChanged, .controlsChanged:
+    case .devicesChanged, .defaultChanged:
       isDirty = true
       let currentVisibility = visibilityGate.snapshot
       guard visibilityAtEvent.isVisible,
@@ -395,6 +395,14 @@ final class AudioInputMonitor: AudioInputMonitoring {
         isVisible
       else { return }
       requestRefresh()
+    case .controlsChanged:
+      isDirty = true
+      let currentVisibility = visibilityGate.snapshot
+      guard visibilityAtEvent.isVisible,
+        visibilityAtEvent.generation == currentVisibility.generation,
+        isVisible
+      else { return }
+      requestRefresh(showProgress: false)
     }
   }
 
@@ -406,7 +414,7 @@ final class AudioInputMonitor: AudioInputMonitoring {
     showError(.refreshFailed)
   }
 
-  private func requestRefresh() {
+  private func requestRefresh(showProgress: Bool = true) {
     guard isEnabled, isVisible, !isStopped else {
       isDirty = true
       return
@@ -414,7 +422,9 @@ final class AudioInputMonitor: AudioInputMonitoring {
     readGeneration &+= 1
     isDirty = true
     refreshPending = true
-    status.isRefreshing = true
+    if showProgress {
+      status.isRefreshing = true
+    }
     publish()
     startPendingRefreshIfPossible()
   }
@@ -635,7 +645,7 @@ final class AudioInputMonitor: AudioInputMonitoring {
         refreshPending = true
       }
       status.isBusy = false
-      status.isRefreshing = refreshPending
+    status.isRefreshing = status.isRefreshing && refreshPending
       publish()
       startNextWorkIfPossible()
       return
@@ -668,7 +678,7 @@ final class AudioInputMonitor: AudioInputMonitoring {
     let failure = commandError ?? (observationDegraded ? .refreshFailed : nil)
     status.error = failure
     status.isBusy = false
-    status.isRefreshing = refreshPending || readInFlight
+    status.isRefreshing = status.isRefreshing && (refreshPending || readInFlight)
     publish()
     if let commandError {
       showError(commandError)
