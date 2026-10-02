@@ -17,9 +17,13 @@ The existing battery icon monitoring is unchanged.
 
 - **Adapter rating** comes from `IOPSCopyExternalPowerAdapterDetails` and
   `kIOPSPowerAdapterWattsKey`. It is not measured charging power.
-- **Time remaining** uses `IOPSGetTimeRemainingEstimate`, only on battery power.
-  Unknown/unlimited estimates remain unavailable; private `TimeRemaining` values
-  are deliberately not used as a fallback.
+- **Estimated time to charge limit / 5% reserve** uses this Mac's completed
+  five-point battery-percentage bands after both the 95% charge and 5% reserve
+  profiles are complete and within the 60-day retention window. The pair
+  activates together. Profiles are built from IOPS capacity crossings, kept
+  separately for charging and discharging, and stored locally. Uncovered bands
+  fall back to the prior estimator; the system estimate remains the final
+  fallback. The profile does not train from system time estimates or wattage.
 - **Low Power Mode** uses the existing `ProcessInfo`-backed battery status.
 - **Power** is one row whose source follows the power connection, not whether
   the battery is actively charging. On external power it shows **System power

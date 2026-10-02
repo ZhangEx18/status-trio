@@ -61,6 +61,11 @@ details](battery-details.md)), so charge control stays where Apple put it: Syste
 Settings › Battery, and the battery section of Control Center where macOS offers its
 own charge-to-full action.
 
+To label the active charge target, Status Trio also makes a read-only call through
+the undocumented `PowerUISmartChargeClient` interface. If that interface is absent
+or changes, the charge limit stays unknown and the estimator falls back; the app
+does not call its charge-control methods.
+
 macOS 26.4 and later add a native charge limit from 80% through 100% on Apple
 silicon Macs, with its own charge-to-full action, so on those versions the limit and
 the override live in the same system place, and this app duplicates neither.

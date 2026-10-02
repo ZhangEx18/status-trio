@@ -40,6 +40,19 @@ private final class BatteryCallbackContext: @unchecked Sendable {
     }
 }
 
+private struct BatteryEstimatorContext: Sendable {
+    let date: Date
+    let percentage: Double
+    let mode: BatteryDataCleaner.Mode?
+    let chargeTarget: Double?
+    let systemEstimateMinutes: Int?
+}
+
+private struct BatteryEstimatorForecasts: Sendable {
+    let profile: Int?
+    let legacy: Int?
+}
+
 final class IOPSBatteryReader: BatteryReadingProviding {
     func read() -> BatteryReading? {
         guard
@@ -88,11 +101,11 @@ final class IOPSBatteryReader: BatteryReadingProviding {
         )
     }
 
-    private static func integerValue(_ value: Any?) -> Int? {
-        guard let value = value as? NSNumber,
-              CFGetTypeID(value) != CFBooleanGetTypeID(),
-              !["f", "d"].contains(String(cString: value.objCType)) else { return nil }
-        return Int(exactly: value.doubleValue)
+    private static func integerValue(_ rawCapacity: Any?) -> Int? {
+        guard let number = rawCapacity as? NSNumber,
+              CFGetTypeID(number) != CFBooleanGetTypeID(),
+              !["f", "d"].contains(String(cString: number.objCType)) else { return nil }
+        return Int(exactly: number.doubleValue)
     }
 }
 
@@ -113,6 +126,8 @@ final class BatteryMonitor: BatteryMonitoring {
     private let notificationCenter: NotificationCenter
     private let workspaceNotificationCenter: NotificationCenter
     private static let estimatorSamplesKey = "battery.timeEstimator.samples.v1"
+    private let profileStore: BatteryTimeProfileStore
+    private var profileCatalog = BatteryTimeProfileCatalog()
     private let iopsRunLoopSourceFactory: IOPSRunLoopSourceFactory
     nonisolated(unsafe) private var runLoopSource: CFRunLoopSource?
     nonisolated(unsafe) private var lowPowerObserver: NSObjectProtocol?
@@ -121,6 +136,8 @@ final class BatteryMonitor: BatteryMonitoring {
     nonisolated(unsafe) private var callbackContext: Unmanaged<BatteryCallbackContext>?
     private var lifecycle = Lifecycle.idle
     private var timeEstimator = BatteryTimeEstimator()
+    private var legacyTimeEstimator = BatteryTimeEstimator()
+    private var lastProfileCaptureKey: String?
     private let telemetryRecorder: BatteryTelemetryRecorder?
 
     init(
@@ -143,12 +160,29 @@ final class BatteryMonitor: BatteryMonitoring {
         self.defaults = defaults
         self.notificationCenter = notificationCenter
         self.workspaceNotificationCenter = workspaceNotificationCenter
+        let profileStore = BatteryTimeProfileStore(defaults: defaults)
+        self.profileStore = profileStore
+        let now = nowProvider()
+        let storedSamplesData = defaults.data(forKey: Self.estimatorSamplesKey)
+        let restored = storedSamplesData.flatMap {
+            try? JSONDecoder().decode([BatteryTimeEstimator.Sample].self, from: $0)
+        } ?? []
+        let storedProfiles = profileStore.load() ?? BatteryTimeProfileCatalog()
+        var profileCatalog = storedProfiles
+        _ = profileCatalog.pruneExpired(now: now)
+        for profile in BatteryTimeProfileBuilder.latestCompleteProfiles(from: restored).profiles {
+            _ = profileCatalog.addIfNewer(profile, now: now)
+        }
+        if profileCatalog != storedProfiles { profileStore.save(profileCatalog) }
+        self.profileCatalog = profileCatalog
+        let activeProfiles = profileCatalog.hasBidirectionalProfiles(now: now)
+            ? profileCatalog : BatteryTimeProfileCatalog()
+        self.timeEstimator = BatteryTimeEstimator(profiles: activeProfiles)
+        self.legacyTimeEstimator = BatteryTimeEstimator()
         self.telemetryRecorder = telemetryRecorder ?? (reader is IOPSBatteryReader
             ? BatteryTelemetryRecorder() : nil)
-        if let data = defaults.data(forKey: Self.estimatorSamplesKey),
-           let restored = try? JSONDecoder().decode([BatteryTimeEstimator.Sample].self, from: data) {
-            timeEstimator.restore(restored, now: nowProvider())
-        }
+        timeEstimator.restore(restored, now: now)
+        legacyTimeEstimator.restore(restored, now: now)
         self.iopsRunLoopSourceFactory = iopsRunLoopSourceFactory
         (updates, continuation) = MonitorStream.make(of: BatteryStatus.self)
     }
@@ -187,6 +221,7 @@ final class BatteryMonitor: BatteryMonitoring {
         // first post-wake sample.  Historical observations stay available to
         // the baseline, while the live interval starts from scratch.
         timeEstimator.markDirtyInterval()
+        legacyTimeEstimator.markDirtyInterval()
         teardownNotifications()
         installNotifications()
     }
@@ -233,6 +268,7 @@ final class BatteryMonitor: BatteryMonitoring {
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.timeEstimator.markDirtyInterval()
+                self?.legacyTimeEstimator.markDirtyInterval()
             }
         }
 
@@ -243,6 +279,7 @@ final class BatteryMonitor: BatteryMonitoring {
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.timeEstimator.markDirtyInterval()
+                self?.legacyTimeEstimator.markDirtyInterval()
             }
         }
     }
@@ -276,37 +313,30 @@ final class BatteryMonitor: BatteryMonitoring {
                 && reading.chargeLimit.map { abs(percentage - $0) <= 3 } == true
             let chargingTarget = reading.isCharging && (reading.chargeLimitKnown || reading.chargeLimit != nil)
                 ? Double(reading.chargeLimit ?? 100) : nil
-            let estimate: Int?
-            if cleaned?.mode == .charging {
-                estimate = timeEstimator.add(
-                    date: now,
-                    percentage: exactPercentage,
-                    charging: true,
-                    target: chargingTarget,
-                    connectedToPower: true,
-                    systemMinutes: reading.timeToFullChargeMinutes
-                )
-            } else if cleaned?.mode == .discharging {
-                estimate = timeEstimator.add(
-                    date: now,
-                    percentage: exactPercentage,
-                    charging: false,
-                    target: 0,
-                    connectedToPower: false,
-                    systemMinutes: reading.remainingMinutes
-                )
-            } else {
-                estimate = timeEstimator.add(
-                    date: now,
-                    percentage: exactPercentage,
-                    charging: false,
-                    target: nil,
-                    connectedToPower: true
-                )
+            let forecasts = calculateEstimates(BatteryEstimatorContext(
+                date: now,
+                percentage: exactPercentage,
+                mode: cleaned?.mode,
+                chargeTarget: chargingTarget,
+                systemEstimateMinutes: reading.isCharging
+                    ? reading.timeToFullChargeMinutes : reading.remainingMinutes
+            ))
+            let profileEstimate = forecasts.profile
+            let legacyEstimate = forecasts.legacy
+            let completedChargeProfile = reading.isConnectedToPower
+                && reading.chargeLimit.map { exactPercentage >= Double($0) } == true
+            let completedDischargeProfile = !reading.isConnectedToPower
+                && !reading.isCharging && exactPercentage <= 5
+            if completedChargeProfile || completedDischargeProfile {
+                updateProfilesFromCompletedSamples(at: now)
             }
             if previousSampleDate != timeEstimator.persistedSamples.last?.date {
                 persistEstimatorSamples()
             }
+            let estimate = profileEstimate ?? legacyEstimate
+            let selectedSource = selectedProfileDirection(
+                for: reading, target: chargingTarget, profileEstimate: profileEstimate, at: now
+            )
             status = BatteryStatus(
                 rawPercentage: percentage,
                 isPresent: true,
@@ -325,6 +355,9 @@ final class BatteryMonitor: BatteryMonitoring {
                 reading,
                 at: now,
                 estimatorMinutes: estimate,
+                profileEstimatorMinutes: profileEstimate,
+                legacyEstimatorMinutes: legacyEstimate,
+                selectedEstimatorSource: selectedSource,
                 displayedMinutes: reading.isCharging
                     ? status.timeToFullChargeMinutes : status.remainingMinutes,
                 estimatorTargetPercent: chargingTarget,
@@ -332,6 +365,7 @@ final class BatteryMonitor: BatteryMonitoring {
             )
         } else {
             timeEstimator.resetCurrentPrediction()
+            legacyTimeEstimator.resetCurrentPrediction()
             if previousSampleDate != timeEstimator.persistedSamples.last?.date {
                 persistEstimatorSamples()
             }
@@ -349,9 +383,74 @@ final class BatteryMonitor: BatteryMonitoring {
         continuation.yield(status)
     }
 
+    private func updateProfilesFromCompletedSamples(at date: Date) {
+        guard let newestSample = timeEstimator.persistedSamples.last else { return }
+        let targetDescription = newestSample.target.map { String($0) } ?? "unknown"
+        let key = "\(newestSample.mode)-\(targetDescription)-\(newestSample.segment)"
+        guard key != lastProfileCaptureKey else { return }
+        lastProfileCaptureKey = key
+
+        var changed = false
+        for profile in BatteryTimeProfileBuilder.latestCompleteProfiles(from: timeEstimator.persistedSamples).profiles {
+            changed = profileCatalog.addIfNewer(profile, now: date) || changed
+        }
+        guard changed else { return }
+        profileStore.save(profileCatalog)
+        let activeProfiles = profileCatalog.hasBidirectionalProfiles(now: date)
+            ? profileCatalog : BatteryTimeProfileCatalog()
+        timeEstimator.updateProfiles(activeProfiles)
+    }
+
+    private func calculateEstimates(_ context: BatteryEstimatorContext) -> BatteryEstimatorForecasts {
+        BatteryEstimatorForecasts(
+            profile: estimate(using: &timeEstimator, context: context),
+            legacy: estimate(using: &legacyTimeEstimator, context: context)
+        )
+    }
+
+    private func estimate(using estimator: inout BatteryTimeEstimator,
+                          context: BatteryEstimatorContext) -> Int? {
+        switch context.mode {
+        case .charging:
+            return estimator.add(date: context.date, percentage: context.percentage,
+                                 charging: true, target: context.chargeTarget,
+                                 connectedToPower: true, systemMinutes: context.systemEstimateMinutes)
+        case .discharging:
+            return estimator.add(date: context.date, percentage: context.percentage,
+                                 charging: false, target: 0, connectedToPower: false,
+                                 systemMinutes: context.systemEstimateMinutes)
+        case .mixedPower, .unavailable, .none:
+            return estimator.add(date: context.date, percentage: context.percentage,
+                                 charging: false, target: nil, connectedToPower: true)
+        }
+    }
+
+    private func selectedProfileDirection(
+        for reading: BatteryReading,
+        target: Double?,
+        profileEstimate: Int?,
+        at date: Date
+    ) -> String {
+        guard profileEstimate != nil, profileCatalog.hasBidirectionalProfiles(now: date) else {
+            return "legacy"
+        }
+        if reading.isCharging, let target {
+            return profileCatalog.hasProfile(direction: .charging,
+                                             targetPercent: Int(target.rounded()), now: date)
+                ? "deviceProfile" : "legacy"
+        }
+        if !reading.isConnectedToPower && !reading.isCharging,
+           profileCatalog.hasProfile(direction: .discharging,
+                                     targetPercent: BatteryTimeProfile.profiledDischargeReservePercent,
+                                     now: date) {
+            return "deviceProfile"
+        }
+        return "legacy"
+    }
+
     private func persistEstimatorSamples() {
-        guard let data = try? JSONEncoder().encode(timeEstimator.persistedSamples) else { return }
-        defaults.set(data, forKey: Self.estimatorSamplesKey)
+        guard let encodedSamples = try? JSONEncoder().encode(timeEstimator.persistedSamples) else { return }
+        defaults.set(encodedSamples, forKey: Self.estimatorSamplesKey)
     }
 
     private func teardownNotifications() {

@@ -26,6 +26,9 @@ final class BatteryTelemetryRecorder: @unchecked Sendable {
         let batteryReadingRepeated: Bool
         let powerSampleRepeated: Bool?
         let estimatorMinutes: Int?
+        let profileEstimatorMinutes: Int?
+        let legacyEstimatorMinutes: Int?
+        let selectedEstimatorSource: String?
         let estimatorTargetPercent: Double?
         let estimatorMissingChargeBandStartPercent: Double?
         let displayedMinutes: Int?
@@ -88,6 +91,9 @@ final class BatteryTelemetryRecorder: @unchecked Sendable {
 
     func record(_ reading: BatteryReading, at date: Date,
                 estimatorMinutes: Int? = nil,
+                profileEstimatorMinutes: Int? = nil,
+                legacyEstimatorMinutes: Int? = nil,
+                selectedEstimatorSource: String? = nil,
                 displayedMinutes: Int? = nil,
                 estimatorTargetPercent: Double? = nil,
                 diagnostics: BatteryTimeEstimator.Diagnostics = .init(mode: nil)) {
@@ -108,7 +114,7 @@ final class BatteryTelemetryRecorder: @unchecked Sendable {
                 return systemMinutes == minutes ? "system" : "unknown"
             }
             let observation = Observation(
-                schemaVersion: 5,
+                schemaVersion: 6,
                 recordedAt: date,
                 percentage: Double(reading.currentCapacity) / Double(reading.maxCapacity) * 100,
                 currentCapacity: reading.currentCapacity,
@@ -133,6 +139,9 @@ final class BatteryTelemetryRecorder: @unchecked Sendable {
                     lastPowerUpdatedAt == $0.updatedAt && lastPowerState == state
                 },
                 estimatorMinutes: estimatorMinutes,
+                profileEstimatorMinutes: profileEstimatorMinutes,
+                legacyEstimatorMinutes: legacyEstimatorMinutes,
+                selectedEstimatorSource: selectedEstimatorSource,
                 estimatorTargetPercent: estimatorTargetPercent,
                 estimatorMissingChargeBandStartPercent: diagnostics.missingChargeBandStartPercent,
                 displayedMinutes: displayedMinutes,

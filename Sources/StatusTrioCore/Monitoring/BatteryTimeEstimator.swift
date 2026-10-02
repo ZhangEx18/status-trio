@@ -88,6 +88,12 @@ struct BatteryTimeEstimator {
     }
 
     enum Mode { case charging, discharging, idle }
+    /// Profile seeding may cross an estimator reset only when adjacent IOPS
+    /// samples remain continuous; idle, thermal, direction, and sleep breaks still reset it.
+    enum BandSegmentPolicy: Equatable, Sendable {
+        case sameEstimatorSegment
+        case verifiedContinuousSamples
+    }
     private struct Rate {
         let value: Double             // percentage points per minute
         let duration: TimeInterval
@@ -95,7 +101,7 @@ struct BatteryTimeEstimator {
         let segment: Int
         let midpoint: Double
     }
-    private struct BandObservation {
+    struct BandObservation {
         let lowerPercent: Int
         let minutes: Double
         let date: Date
@@ -115,8 +121,12 @@ struct BatteryTimeEstimator {
     /// 60 days does not make a stale workload dominate a new one.
     static let persistenceHorizon: TimeInterval = BatteryLongTermBaseline.retentionHorizon
     static let maximumPersistedSamples = 25_000
-    private static let maximumGap: TimeInterval = 3 * 60
-    private static let recentWindow: TimeInterval = 15 * 60
+    static let maximumGap: TimeInterval = 3 * 60
+    static let maximumSegmentCapacityChange = 4.0
+    /// Keep the live load estimate responsive; historical profiles remain
+    /// long-lived and are unaffected by this short window.
+    private static let recentWindow: TimeInterval = 5 * 60
+    private static let recentSmoothingTime: TimeInterval = 2 * 60
     private static let minimumRate = 0.01
     private static let lowBatteryDamping = 0.72
     private static let dynamicHorizonPercent = 10.0
@@ -131,13 +141,21 @@ struct BatteryTimeEstimator {
     private var pendingProbe: ShortProbe?
     private var lastProbeMinutesPerPoint: Double?
     private var dischargeStateMachine = BatteryDischargeStateMachine()
+    private var profiles: BatteryTimeProfileCatalog
     /// A cycle-local reference used only when a physical charge band has not
     /// been learned yet.  It is never written into the long-term profile, so
     /// thermal throttling cannot permanently slow the model.
     private var chargingReferenceMinutesPerPoint: Double?
 
-    init(samples: [Sample] = []) { self.samples = samples }
+    init(samples: [Sample] = [], profiles: BatteryTimeProfileCatalog = .init()) {
+        self.samples = samples
+        self.profiles = profiles
+    }
     var persistedSamples: [Sample] { Array(samples.suffix(Self.maximumPersistedSamples)) }
+
+    mutating func updateProfiles(_ profiles: BatteryTimeProfileCatalog) {
+        self.profiles = profiles
+    }
 
     mutating func restore(_ stored: [Sample], now: Date) {
         samples = stored.filter {
@@ -195,7 +213,7 @@ struct BatteryTimeEstimator {
         let gap = last.map { date.timeIntervalSince($0.date) } ?? 0
         let change = percentage - (last?.percentage ?? percentage)
         let implausible = gap <= Self.maximumGap && (
-            abs(change) > 4 || (mode == .discharging && change > 1)
+            abs(change) > Self.maximumSegmentCapacityChange || (mode == .discharging && change > 1)
                 || (mode == .charging && change < -1)
         )
         let boundary = nextSampleStartsSegment || last.map {
@@ -283,7 +301,11 @@ struct BatteryTimeEstimator {
             diagnostics.dischargeState = dischargeStateName
             // Keep the sub-10% tail out of the long-term band model.  The
             // reserve floor is handled by the rate fallback and damping.
-            let profileTarget = 10.0
+            let profileTarget = profiles.hasProfile(
+                direction: .discharging,
+                targetPercent: 5,
+                now: date
+            ) ? 5.0 : 10.0
             if let profile = profileMinutes(from: percentage, to: profileTarget, mode: mode,
                                             bands: bands, segment: segment, date: date) {
                 diagnostics.reservePercent = 5
@@ -326,7 +348,7 @@ struct BatteryTimeEstimator {
             let segmentAge = liveSegmentStartedAt.map { date.timeIntervalSince($0) } ?? 0
             if mode == .discharging,
                dischargeStateMachine.state != .highLoad,
-               segmentAge < 15 * 60 {
+               segmentAge < 2 * 60 {
                 // State A/B keeps a short recalibration from making the
                 // displayed total jump on every 1% sample.  Once the segment
                 // has proved stable, the ordinary bounded slew resumes.
@@ -610,17 +632,20 @@ struct BatteryTimeEstimator {
         guard recent.count >= 4, let latest = recent.last else { return nil }
         let observed = latest.value
         let elapsed = smoothedAt.map { max(0, date.timeIntervalSince($0)) } ?? Self.recentWindow
-        let alpha = 1 - exp(-elapsed / (8 * 60))
+            let alpha = 1 - exp(-elapsed / Self.recentSmoothingTime)
         let next = smoothedRate.map { $0 + alpha * (observed - $0) } ?? observed
         smoothedRate = next
         smoothedAt = date
         return next
     }
 
-    /// One observation per fully crossed five-point band in a continuous segment.
-    /// Crossing times are interpolated between IOPS percentages, never inferred
-    /// from a system time estimate or a power reading.
-    private func completedBands(mode: Mode, target: Double?) -> [BandObservation] {
+    /// One observation per fully crossed five-point band. Crossing times are
+    /// interpolated from IOPS percentages, never system-time or power estimates.
+    func completedBands(
+        mode: Mode,
+        target: Double?,
+        segmentPolicy: BandSegmentPolicy = .sameEstimatorSegment
+    ) -> [BandObservation] {
         var observations: [BandObservation] = []
         var previous: Sample?
         var crossing: (percent: Int, date: Date)?
@@ -630,7 +655,8 @@ struct BatteryTimeEstimator {
                 crossing = nil
                 continue
             }
-            guard let prior = previous, prior.segment == sample.segment else {
+            guard let prior = previous,
+                  segmentPolicy == .verifiedContinuousSamples || prior.segment == sample.segment else {
                 previous = sample
                 let boundary = (sample.percentage / 5).rounded() * 5
                 crossing = abs(sample.percentage - boundary) < 0.000001
@@ -642,6 +668,11 @@ struct BatteryTimeEstimator {
             guard gap > 0, gap <= Self.maximumGap else { crossing = nil; continue }
             let change = sample.percentage - prior.percentage
             guard mode == .charging ? change >= 0 : change <= 0 else {
+                crossing = nil
+                continue
+            }
+            if segmentPolicy == .verifiedContinuousSamples,
+               abs(change) > Self.maximumSegmentCapacityChange {
                 crossing = nil
                 continue
             }
@@ -737,11 +768,12 @@ struct BatteryTimeEstimator {
         diagnostics.nextTwoPercentMinutes = adjustedRate.map { $0 * localSpan }
         var position = percentage
         var total = 0.0
+        var usedLocalProfile = false
         if let local,
            let prior = profileBaseMinutes(from: mode == .charging ? percentage - 5 : percentage + 5,
                                           to: percentage, mode: mode, bands: bands,
                                           segment: segment, date: date) {
-            diagnostics.recentCorrectionFactor = local / prior
+        diagnostics.recentCorrectionFactor = local / prior
         }
         while mode == .charging ? position < target : position > target {
             let lower = mode == .charging
@@ -750,14 +782,26 @@ struct BatteryTimeEstimator {
                 ? min(target, Double(lower + 5)) : max(target, Double(lower))
             let distance = abs(next - position)
             guard distance > 0 else { return nil }
-            if let baseline = bandMinutes(lower, in: bands, mode: mode,
-                                          excluding: segment, now: date) {
+            let profileDirection: BatteryTimeProfile.Direction =
+                mode == .charging ? .charging : .discharging
+            let profileTargetPercent = mode == .charging
+                ? Int(target.rounded()) : 5
+            let localBaseline = profiles.minutesPerBand(
+                direction: profileDirection,
+                targetPercent: profileTargetPercent,
+                lowerPercent: lower,
+                now: date
+            )
+            if localBaseline != nil { usedLocalProfile = true }
+            if let baseline = localBaseline
+                ?? bandMinutes(lower, in: bands, mode: mode, excluding: segment, now: date) {
                 total += effectiveBandMinutes(
                     baseline: baseline,
                     distance: distance,
                     from: position,
                     start: percentage,
-                    mode: mode
+                    mode: mode,
+                    baselineRateOverride: localBaseline.map { 5 / $0 }
                 )
             } else {
                 if mode == .charging { diagnostics.missingChargeBandStartPercent = Double(lower) }
@@ -767,7 +811,7 @@ struct BatteryTimeEstimator {
             position = next
         }
         diagnostics.predictionMethod = "intervalProfile"
-        return mode == .discharging && percentage < 10
+        return mode == .discharging && percentage < 10 && !usedLocalProfile
             ? total * Self.lowBatteryDamping
             : total
     }
@@ -800,12 +844,13 @@ struct BatteryTimeEstimator {
     }
 
     private func effectiveBandMinutes(baseline: Double, distance: Double,
-                                     from position: Double, start: Double,
-                                     mode: Mode) -> Double {
+                                      from position: Double, start: Double,
+                                      mode: Mode,
+                                      baselineRateOverride: Double? = nil) -> Double {
         guard mode == .discharging,
               let recent = diagnostics.recentRate,
               recent > 0,
-              let baselineRate = diagnostics.baselineRate,
+              let baselineRate = baselineRateOverride ?? diagnostics.baselineRate,
               baselineRate > 0 else {
             return baseline * distance / 5
         }

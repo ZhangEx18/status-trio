@@ -1,6 +1,6 @@
 import Foundation
 
-/// Asymmetric live-load detector: entering high load needs three consecutive
+/// Asymmetric live-load detector: entering high load needs two consecutive
 /// non-overlapping fast intervals, while one recovered interval exits it.
 struct BatteryDischargeStateMachine: Sendable {
     enum State: String, Sendable {
@@ -12,10 +12,10 @@ struct BatteryDischargeStateMachine: Sendable {
 
     static let highLoadEntryRatio = 1.35
     static let highLoadExitRatio = 1.15
-    static let requiredFastIntervals = 3
+    static let requiredFastIntervals = 2
     static let lowLoadEntryRatio = 0.75
     static let lowLoadExitRatio = 0.85
-    static let requiredSlowIntervals = 5
+    static let requiredSlowIntervals = 3
 
     private(set) var state: State = .baseline
     private(set) var consecutiveFastIntervals = 0

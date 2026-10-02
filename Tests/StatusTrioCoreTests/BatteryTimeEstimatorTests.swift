@@ -17,12 +17,20 @@ final class BatteryTimeEstimatorTests: XCTestCase {
         XCTAssertEqual(stateMachine.state, .baseline)
     }
 
-    func testFiveSlowIntervalsEnterLowLoadAndOneNormalIntervalExits() {
+    func testTwoFastIntervalsEnterHighLoadForResponsiveForecasts() {
+        var stateMachine = BatteryDischargeStateMachine()
+        for _ in 0..<2 {
+            stateMachine.update(baseline: 1.0, recentIntervals: [1.4])
+        }
+        XCTAssertEqual(stateMachine.state, .highLoad)
+    }
+
+    func testThreeSlowIntervalsEnterLowLoadAndOneNormalIntervalExits() {
         var stateMachine = BatteryDischargeStateMachine()
         let baselineRate = 1.0
         let slowRate = 0.7
 
-        for _ in 0..<5 {
+        for _ in 0..<3 {
             stateMachine.update(baseline: baselineRate, recentIntervals: [slowRate])
         }
         XCTAssertEqual(stateMachine.state, .lowLoad)

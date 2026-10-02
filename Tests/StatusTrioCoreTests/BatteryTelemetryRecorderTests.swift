@@ -29,7 +29,7 @@ final class BatteryTelemetryRecorderTests: XCTestCase {
         XCTAssertEqual(observation.percentage, 72)
         XCTAssertEqual(observation.batteryWatts, -18)
         XCTAssertEqual(observation.systemDischargeMinutes, 210)
-        XCTAssertEqual(observation.schemaVersion, 5)
+        XCTAssertEqual(observation.schemaVersion, 6)
         XCTAssertEqual(observation.displayedMinutes, 210)
         XCTAssertEqual(observation.displayedMinutesSource, "system")
         XCTAssertNotNil(observation.powerReadAt)
@@ -103,6 +103,38 @@ final class BatteryTelemetryRecorderTests: XCTestCase {
         XCTAssertEqual(observation.estimatorCompletedProbePredictedMinutes, 12)
         XCTAssertEqual(observation.estimatorCompletedProbeActualMinutes, 15)
         XCTAssertEqual(observation.estimatorCompletedProbePredictionErrorRatio, 1.25)
+    }
+
+    func testRecordsProfileAndLegacyForecastsSeparately() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BatteryTelemetryRecorderTests-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let recorder = BatteryTelemetryRecorder(directory: directory, powerReader: { _, _ in nil })
+        recorder.record(BatteryReading(currentCapacity: 77, maxCapacity: 100,
+                                       isCharging: false, remainingMinutes: 132,
+                                       isConnectedToPower: false, isPresent: true),
+                        at: now,
+                        estimatorMinutes: 84,
+                        profileEstimatorMinutes: 84,
+                        legacyEstimatorMinutes: 132,
+                        selectedEstimatorSource: "deviceProfile",
+                        displayedMinutes: 84)
+        recorder.flush()
+
+        let file = try XCTUnwrap(FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: nil).first)
+        let line = try XCTUnwrap(Data(contentsOf: file).split(separator: 0x0A).first)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let observation = try decoder.decode(BatteryTelemetryRecorder.Observation.self,
+                                             from: Data(line))
+
+        XCTAssertEqual(observation.schemaVersion, 6)
+        XCTAssertEqual(observation.estimatorMinutes, 84)
+        XCTAssertEqual(observation.profileEstimatorMinutes, 84)
+        XCTAssertEqual(observation.legacyEstimatorMinutes, 132)
+        XCTAssertEqual(observation.selectedEstimatorSource, "deviceProfile")
     }
 
     func testChargingFallbackRecordsItsTargetAndDisplayedSource() throws {

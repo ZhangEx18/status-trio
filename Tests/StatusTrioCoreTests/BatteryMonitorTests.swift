@@ -57,6 +57,111 @@ final class BatteryMonitorTests: XCTestCase {
         second.stop()
     }
 
+    func testInitSeedsBidirectionalProfilesWithoutReplacingLegacySamples() throws {
+        let suite = "BatteryMonitorTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let start = Date(timeIntervalSince1970: 1_000_000)
+        var samples: [BatteryTimeEstimator.Sample] = []
+        for (index, percentage) in (19...95).enumerated() {
+            samples.append(.init(date: start.addingTimeInterval(Double(index * 60)),
+                                 percentage: Double(percentage), charging: true,
+                                 target: 95, connectedToPower: true, segment: 1))
+        }
+        for (index, percentage) in stride(from: 95, through: 5, by: -1).enumerated() {
+            samples.append(.init(date: start.addingTimeInterval(10_000 + Double(index * 120)),
+                                 percentage: Double(percentage), charging: false,
+                                 target: 0, connectedToPower: false, segment: 2))
+        }
+        let legacyData = try JSONEncoder().encode(samples)
+        defaults.set(legacyData, forKey: "battery.timeEstimator.samples.v1")
+        let monitor = BatteryMonitor(reader: FakeBatteryReader(result: makeReading(percentage: 19)),
+                                     lowPowerModeProvider: { false },
+                                     nowProvider: { start.addingTimeInterval(30_000) },
+                                     defaults: defaults)
+
+        XCTAssertEqual(defaults.data(forKey: "battery.timeEstimator.samples.v1"), legacyData)
+        let profileData = try XCTUnwrap(defaults.data(forKey: BatteryTimeProfileStore.key))
+        let catalog = try JSONDecoder().decode(BatteryTimeProfileCatalog.self, from: profileData)
+        XCTAssertEqual(Set(catalog.profiles.map(\.direction)), [.charging, .discharging])
+        monitor.stop()
+    }
+
+    func testMonitorPublishesDeviceProfileAndRecordsLegacyShadow() async throws {
+        let suite = "BatteryMonitorTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BatteryMonitorShadowTests-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let start = Date(timeIntervalSince1970: 1_000_000)
+        let now = start.addingTimeInterval(151 * 60)
+        let samples = (0...75).map { index in
+            BatteryTimeEstimator.Sample(
+                date: start.addingTimeInterval(Double(index * 120)),
+                percentage: Double(20 + index),
+                charging: true,
+                target: 95,
+                connectedToPower: true,
+                segment: 1
+            )
+        }
+        defaults.set(try JSONEncoder().encode(samples), forKey: "battery.timeEstimator.samples.v1")
+        let deviceProfile = BatteryTimeProfile(
+            direction: .charging,
+            targetPercent: 95,
+            sessionStart: start,
+            sessionEnd: now.addingTimeInterval(-30),
+            sessionStartPercent: 20,
+            sessionEndPercent: 95,
+            bands: stride(from: 20, to: 95, by: 5)
+                .map { .init(lowerPercent: $0, minutes: 5) }
+        )
+        let dischargeProfile = BatteryTimeProfile(
+            direction: .discharging,
+            targetPercent: 5,
+            sessionStart: start,
+            sessionEnd: now.addingTimeInterval(-30),
+            sessionStartPercent: 95,
+            sessionEndPercent: 5,
+            bands: stride(from: 5, to: 95, by: 5)
+                .map { .init(lowerPercent: $0, minutes: 2) }
+        )
+        let catalog = BatteryTimeProfileCatalog(profiles: [deviceProfile, dischargeProfile])
+        defaults.set(try JSONEncoder().encode(catalog), forKey: BatteryTimeProfileStore.key)
+        let recorder = BatteryTelemetryRecorder(directory: directory, powerReader: { _, _ in nil })
+        let monitor = BatteryMonitor(
+            reader: FakeBatteryReader(result: BatteryReading(
+                currentCapacity: 30, maxCapacity: 100, isCharging: true,
+                chargeLimit: 95, chargeLimitKnown: true,
+                isConnectedToPower: true, isPresent: true
+            )),
+            lowPowerModeProvider: { false },
+            nowProvider: { now },
+            defaults: defaults,
+            telemetryRecorder: recorder
+        )
+        monitor.refresh()
+        var iterator = monitor.updates.makeAsyncIterator()
+        let battery = await iterator.next()
+        recorder.flush()
+
+        XCTAssertEqual(battery?.timeToFullChargeMinutes, 65)
+        let file = try XCTUnwrap(FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: nil).first)
+        let line = try XCTUnwrap(Data(contentsOf: file).split(separator: 0x0A).first)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let observation = try decoder.decode(BatteryTelemetryRecorder.Observation.self,
+                                             from: Data(line))
+        XCTAssertEqual(observation.profileEstimatorMinutes, 65)
+        XCTAssertEqual(observation.legacyEstimatorMinutes, 130)
+        XCTAssertEqual(observation.estimatorMinutes, 65)
+        XCTAssertEqual(observation.selectedEstimatorSource, "deviceProfile")
+        monitor.stop()
+    }
+
     func testUnknownChargeLimitStaysDistinctFromConfirmedNoLimit() {
         let suite = "BatteryMonitorTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
