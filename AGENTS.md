@@ -46,12 +46,27 @@ run ID, failed stage, root cause, fix, and verification result.
 - Do not assume SwiftPM `Bundle.module` resource names or directory casing match local builds. For localized resources, try the canonical and lowercase `lproj` names and load with `Bundle(path:)`.
 - If the Swift compiler crashes with `IRGenRequest`, `SmallVector unable to grow`, or a signal 6, reduce the code pattern that causes the crash. Do not treat it as a flaky failure and do not hide it with experimental compiler flags.
 
+## External macOS commands and privacy boundaries
+
+- Synchronous reads from system tools (`/usr/sbin/system_profiler`, `/usr/sbin/networksetup`, and `/usr/bin/pmset`) must use `BoundedProcessRun.run(...)` with a documented deadline. Do not add an unbounded `readDataToEndOfFile()` followed by `waitUntilExit()` on a monitor's serial queue; a wedged tool would pin later status updates for the rest of the session.
+- A launch failure, non-zero exit, timeout, or incomplete output must degrade to the existing empty or `nil` result. Do not parse partial output from a killed process as a valid status report. Keep timeout and escalation behavior covered in `BoundedProcessRunTests`.
+- `pmset -g accps -xml` is an optional, undocumented accessory-battery fallback. Keep the documented `system_profiler` report as the primary source, and do not replace this fallback with private symbols, new entitlements, or a privileged helper.
+- Status Trio does not read or store Wi-Fi passwords. Network switching remains delegated to System Settings; do not add Keychain password reads, password caches, SMC charge-control writes, or other privileged control paths.
+- The optional audio-input section reads device inventory, the default device, in-use state, gain, and mute status. It may switch devices or write supported gain/mute controls, but it must not capture, record, or persist microphone audio; keep the input monitor stopped when that section is disabled.
+- App Audio is a separate opt-in feature: per-app controls use a private Core Audio process tap and system audio permission. Audio buffers remain local and must not be uploaded or persisted. Battery telemetry and device profiles are stored locally; document their retention and the best-effort read-only PowerUI charge-limit lookup accurately.
+
 ## Change Flow
 
 - Small, low-risk changes — especially your own follow-up tweaks — go straight to `main`: commit directly, or use a short-lived branch and fast-forward it into `main`. No pull request is required.
 - Use a pull request when a change is large, touches several subsystems, or when a review/discussion record is worth keeping.
 - Whichever route is taken, the verification rules above still apply: `swift test` and `swift build -c release`, plus a non-publishing release workflow run when the change touches actor isolation, `@MainActor`, `deinit`, SwiftUI bindings, generics, or `Bundle.module` resources.
 - The release workflow only runs on tags and manual dispatches, so a pull request does not add CI coverage on its own.
+
+## Local build and test entry points
+
+- `bash scripts/test.sh` is the normal local test entry point because it runs `scripts/check-forbidden-patterns.sh` before `swift test`. A focused test may be passed as its first argument.
+- `bash scripts/build-app.sh release [no-open]` creates the signed `dist/StatusTrio.app` bundle and enforces the SDK and `LC_BUILD_VERSION` checks. Use `bash scripts/build-worktree.sh release` for a side-by-side worktree build; it derives a development bundle identifier and display name so it does not replace the production app.
+- Keep subprocess, AppKit, and SwiftUI tests deterministic. Prefer bounded polling or an explicit test clock over fixed sleeps when a state change is asynchronous; record any CI-only failure in `docs/swift-ci-compatibility.md` with its run ID and remediation.
 
 ## Menu Bar and Dock Icon Parity
 
@@ -78,7 +93,8 @@ run ID, failed stage, root cause, fix, and verification result.
 - Release through `.github/workflows/release.yml`; do not publish manually unless the workflow is unavailable and the user explicitly asks for a manual fallback.
 - Version and build numbers must be explicit and must increase the published build number.
 - Confirm tests, DMG creation, Release upload, and appcast publication in the workflow result.
-- The current repository has no Developer ID certificate or notarization secrets. Releases are Ad-hoc signed; document this limitation rather than claiming notarization.
+- Sparkle currently signs the downloadable DMG entries with `sparkle:edSignature` and pins `SUPublicEDKey`; the appcast document itself does not enable `SURequireSignedFeed` or `SUVerifyUpdateBeforeExtraction`. Do not describe the feed as signed or add feed-signing claims without changing and testing that contract together.
+- The release workflow accepts optional Developer ID and notarization secrets. When those secrets are absent, the artifact is Ad-hoc signed and not notarized; user-facing release notes must describe the actual workflow result and must not imply notarization from a successful build alone.
 
 ## Project Skills
 
@@ -89,3 +105,19 @@ run ID, failed stage, root cause, fix, and verification result.
 - When re-vendoring by hand, sync each whole upstream skill folder rather than `SKILL.md` alone, and delete files the upstream removed.
 
 See [Swift toolchain CI compatibility](docs/swift-ci-compatibility.md) for the incident history and examples, and [System Settings pane routes](docs/settings-pane-routes.md) for how a settings-pane route is verified.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
+
+Rules:
+- For codebase questions, run `graphify query "<question>"` when graphify-out/graph.json exists; narrow broad queries and prefer `graphify explain "<symbol>"` for callers and focused concepts. Treat `graphify path` as a candidate: this graph misses the verified call from `StatusPopoverView.swift` to `StatusMappings.wifiBars`, while `--undirected` finds an unrelated detour. Verify important relationships against source.
+- For file-to-file call paths, use `python3 scripts/graphify-file-path.py <SOURCE_FILE> <TARGET_FILE>`; use Graphify `path` for symbol-to-symbol paths.
+- When Graphify reports duplicate-node warnings, run `graphify diagnose multigraph --graph graphify-out/graph.json --json`; assess missing endpoints and same-endpoint edge collapse from its summary, not warning count alone.
+- When Graphify reports Swift parse errors, confirm with the project Swift compiler before changing app code; tree-sitter may flag syntax the Swift compiler accepts.
+- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

@@ -64,7 +64,7 @@ Status Trio est une app d’état native macOS qui réunit le Wi-Fi, la batterie
 - **Personnalisez-le** — taille de l’icône, échelle des symboles, épaisseur de l’anneau, couleurs d’état et éléments affichés dans le panneau d’état, dans l’ordre de votre choix.
 - **Barre des menus, Dock, ou les deux** — et l’icône du Dock peut suivre le style du système ou rester sombre ou claire.
 - **Natif sur macOS** — un clic gauche ouvre le panneau d’état, un clic droit ouvre le menu, et un guide du premier lancement explique chaque partie de l’icône. Ethernet, un partage de connexion ou le partage Internet peuvent conserver le glyphe Wi-Fi si vous préférez.
-- **Toujours à jour** — l’état provient des événements système avec une interrogation lente en secours, et Sparkle met à jour l’app via un flux signé.
+- **Toujours à jour** — l’état provient des événements système avec une interrogation lente en secours, et Sparkle met à jour l’app en vérifiant les paquets de mise à jour signés avec EdDSA.
 - **Également inclus** — douze langues et un lancement à l’ouverture de session facultatif.
 
 ## Audio Bluetooth

@@ -64,7 +64,7 @@ Status Trio ist eine native macOS-Status-App, die Wi-Fi, Batterie und Lautstärk
 - **Nach Ihren Wünschen** — Symbolgröße, Symbolskalierung, Stärke des äußeren Rings, Statusfarben und welche Elemente das Popover zeigt, in der Reihenfolge Ihrer Wahl.
 - **Menüleiste, Dock oder beides** — und das Dock-Symbol kann der Systemeinstellung folgen oder dunkel bzw. hell bleiben.
 - **Nativ auf macOS** — ein Linksklick öffnet das Popover, ein Rechtsklick das Menü, und eine Anleitung beim ersten Start erklärt jeden Teil des Symbols. Ethernet, ein persönlicher Hotspot oder Internetfreigabe können das Wi-Fi-Symbol beibehalten, wenn Sie das bevorzugen.
-- **Immer aktuell** — der Status stammt aus Systemereignissen, mit einer langsamen Abfrage als Ersatzlösung, und Sparkle aktualisiert die App über einen signierten Feed.
+- **Immer aktuell** — der Status stammt aus Systemereignissen, mit einer langsamen Abfrage als Ersatzlösung, und Sparkle aktualisiert die App, indem es mit EdDSA signierte Update-Pakete überprüft.
 - **Ebenfalls enthalten** — zwölf Sprachen und die Option „Beim Anmelden starten“.
 
 ## Bluetooth-Audio

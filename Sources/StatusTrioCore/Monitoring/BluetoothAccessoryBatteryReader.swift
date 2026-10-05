@@ -127,8 +127,9 @@ final class PmsetAccessoryBatteryWorker: @unchecked Sendable, BluetoothAccessory
         // A read that never returned would block this one behind it on the same
         // serial queue for the lifetime of the process, so retire that queue and
         // give this read a fresh one. `pmset` talks to the power manager and can
-        // hang the same way `/usr/sbin/system_profiler` can, and the abandoned
-        // block keeps the old queue alive until it eventually returns.
+        // hang the same way `/usr/sbin/system_profiler` can; the abandoned block
+        // keeps the old queue alive until it returns, and the pmset deadline is
+        // what bounds that return instead of letting it linger forever.
         let generation: UInt64
         let currentQueue: DispatchQueue
         (generation, currentQueue) = stateLock.withLock {
@@ -157,23 +158,18 @@ final class PmsetAccessoryBatteryWorker: @unchecked Sendable, BluetoothAccessory
         }
     }
 
+    /// `pmset` normally answers instantly, so only a genuinely wedged
+    /// power-manager read pays this deadline.
+    private static let readTimeout = Duration.seconds(5)
+
     static func readAccessoryPowerSources() -> String? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
-        process.arguments = ["-g", "accps", "-xml"]
-
-        let output = Pipe()
-        process.standardOutput = output
-        process.standardError = FileHandle.nullDevice
-
-        do {
-            try process.run()
-            let data = output.fileHandleForReading.readDataToEndOfFile()
-            process.waitUntilExit()
-            guard process.terminationStatus == 0 else { return nil }
-            return String(data: data, encoding: .utf8)
-        } catch {
+        guard let data = BoundedProcessRun.run(
+            executableURL: URL(fileURLWithPath: "/usr/bin/pmset"),
+            arguments: ["-g", "accps", "-xml"],
+            timeout: Self.readTimeout
+        ) else {
             return nil
         }
+        return String(data: data, encoding: .utf8)
     }
 }

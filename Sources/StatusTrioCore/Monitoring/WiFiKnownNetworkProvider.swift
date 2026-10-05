@@ -35,30 +35,26 @@ protocol WiFiKnownNetworkProviding: Sendable {
 }
 
 /// Reads the system's preferred-network names without accessing their stored
-/// passwords. The process runs on the CoreWLAN worker's serial queue.
+/// passwords. The process runs on the CoreWLAN worker's serial queue, so a
+/// wedged run must be killed at a deadline: a read that never returned would
+/// keep that queue pinned and the Wi-Fi list stuck in `.scanning` for the rest
+/// of the session.
 final class NetworksetupWiFiKnownNetworkProvider: WiFiKnownNetworkProviding, @unchecked Sendable {
     private static let executableURL = URL(fileURLWithPath: "/usr/sbin/networksetup")
+    /// Far above the tool's normal latency, so only a genuinely wedged run
+    /// pays it.
+    private static let readTimeout = Duration.seconds(5)
 
     func preferredNetworkSSIDs(interface: String) -> Set<String> {
-        let process = Process()
-        process.executableURL = Self.executableURL
-        process.arguments = WiFiNetworkSetupCommand
-            .listPreferredNetworks(interface: interface)
-            .arguments
-
-        let outputPipe = Pipe()
-        process.standardOutput = outputPipe
-        process.standardError = FileHandle.nullDevice
-
-        do {
-            try process.run()
-        } catch {
+        guard let outputData = BoundedProcessRun.run(
+            executableURL: Self.executableURL,
+            arguments: WiFiNetworkSetupCommand
+                .listPreferredNetworks(interface: interface)
+                .arguments,
+            timeout: Self.readTimeout
+        ) else {
             return []
         }
-
-        let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        guard process.terminationStatus == 0 else { return [] }
         return WiFiPreferredNetworkOutputParser.parse(
             String(data: outputData, encoding: .utf8) ?? ""
         )

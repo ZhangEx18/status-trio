@@ -50,7 +50,7 @@
   <img src="screenshots/menu-bar-wifi.jpg" width="1000" alt="Status Trio menu bar icon showing the Wi-Fi glyph while connected to Wi-Fi, with its status popover open">
 </p>
 
-Status Trio is a native macOS status app that combines Wi-Fi, battery, and volume into one compact, configurable icon, shown in the menu bar, in the Dock, or in both. Its popover goes deeper than the icon: a Wi-Fi panel for nearby networks and link details, a Bluetooth panel for paired devices, a Battery Details page, and the audio devices that are playing. It is inspired by the iPhone Duo's combined status bar icon for Wi-Fi, Battery, and Cellular Data, adapted for Mac with Volume instead of Cellular Data.
+Status Trio is a native macOS status app that combines Wi-Fi, battery, and volume into one compact, configurable icon, shown in the menu bar, in the Dock, or in both. Its popover goes deeper than the icon: Wi-Fi and Ethernet details, VPN and proxy status, a Bluetooth panel for paired devices, a Battery Details page, and audio input and output controls. It is inspired by the iPhone Duo's combined status bar icon for Wi-Fi, Battery, and Cellular Data, adapted for Mac with Volume instead of Cellular Data.
 
 > Status Trio is an independent project and is not affiliated with Apple.
 
@@ -59,12 +59,13 @@ Status Trio is a native macOS status app that combines Wi-Fi, battery, and volum
 - **One icon, three signals** — battery, Wi-Fi, and volume share one icon in the menu bar, the Dock, or both, and a Bluetooth device that is playing can take the middle spot with its own symbol.
 - **Bluetooth** — the volume indicator turns blue while it plays. The panel lists paired devices you can tap to connect or disconnect, shows battery levels by default, and stays off until you enable it.
 - **Battery** — percentage, charging or plugged in, time to full, and a color when it runs low. Open the row for adapter power, voltage, current, cycle count, and Low Power Mode.
-- **Wi-Fi** — the network you are on and how strong the signal is. Open it to see nearby networks, check the link details, or switch Wi-Fi off. Switching between networks happens in the Wi-Fi pane of System Settings.
+- **Network** — Wi-Fi, Ethernet, VPN, and proxy status. Open Wi-Fi or Ethernet for link details; switching Wi-Fi networks happens in the Wi-Fi pane of System Settings.
 - **Volume** — level, mute, and the output device, drawn as dots or an arc. Scroll the whole panel or just the control, and pick which direction turns it up.
+- **Audio panel** — output and microphone input tabs, with supported volume and mute controls, plus optional per-app audio controls. Microphone controls read device state; per-app controls require Screen & System Audio Recording permission.
 - **Make it yours** — icon size, symbol scale, ring thickness, status colors, and which sections the popover shows, in the order you want.
 - **Menu bar, Dock, or both** — and the Dock icon can follow the system style or stay dark or light.
 - **Native on macOS** — left-click opens the popover, right-click opens the menu, and a first-launch guide explains each part of the icon. Ethernet, a hotspot, or Internet Sharing can keep the Wi-Fi glyph if you prefer.
-- **Stays current** — status comes from system events with a slow poll as a fallback, and Sparkle updates the app through a signed feed.
+- **Stays current** — status comes from system events with a slow poll as a fallback, and Sparkle verifies downloaded update packages with its EdDSA signature.
 - **Also included** — twelve languages, and an optional launch at login.
 
 ## Bluetooth audio
@@ -176,7 +177,8 @@ Do not disable Gatekeeper globally. Subsequent Sparkle updates are authenticated
 - **Left-click** the menu bar icon or the Dock icon to open the status popover.
 - **Right-click** either icon for the native menu, including version and quit actions.
 - Select the Wi-Fi or battery row in the popover to open its page: nearby networks and link details, or Battery Details. The Bluetooth row lists its paired devices in place — tap one to connect or disconnect — with an Expand control when they do not all fit.
-- Open **Settings** to choose where the icon is shown (menu bar, Dock, or both) and to change its size, colors, ring thickness, the panel sections and their order, scroll-to-adjust behavior, language, update checks, and launch at login.
+- Open **Settings** to choose where the icon is shown (menu bar, Dock, or both) and to change its size, colors, ring thickness, the panel sections and their order, scroll-to-adjust behavior, language, update checks, launch at login, and the charging effect.
+- Use the input tab in the audio panel to inspect or control microphone devices. Enable App Audio when you want to control individual apps and grant its system audio permission when prompted.
 - Reopen the **Meet your icon** guide any time from **Settings › App Icon › Open Guide**.
 - Enable the current Wi-Fi network name when prompted; macOS requests location access for this optional detail.
 

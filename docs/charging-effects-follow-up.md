@@ -1,4 +1,4 @@
-# Charging Effects: Follow-up Before Integration
+# Charging Effects: Follow-ups After Integration
 
 ## Current status
 
@@ -15,8 +15,8 @@ The measured layer-backed 60-second CPU A/B was 1.651% enabled mean versus 0.136
 ## Deferred follow-ups
 
 1. **Verify with the exact CI toolchain.** The local machine has Xcode 27 / Swift 6.4, not the repository's Xcode 26.6 / Swift 6.3.3. A local successful build does not establish exact CI-toolchain compatibility.
-2. **Run the non-publishing release preflight before merge or publishing.** The branch changes actor-isolated and SwiftUI code, so repository rules require the `release.yml` workflow with `publish=false` before integration. The user explicitly deferred release preflight; do not start it without later authorization.
+2. **Run the non-publishing release preflight before publishing.** The merged changes touch actor-isolated and SwiftUI code, so repository rules require the `release.yml` workflow with `publish=false` before the release that ships them. The user explicitly deferred release preflight; do not start it without later authorization.
 3. **Optionally repeat the matched 60-second CPU A/B on the exact final tree** if acceptance requires a measurement from the committed revision rather than the already measured layer-backed update path.
-4. **Choose branch integration after those gates.** `feature/charging-effects` remains isolated and has not been merged or pushed.
+4. **Integration is done; the toolchain gates carry over.** `feature/charging-effects` was merged into `main` (merge commit 6505cd8) before items 1 and 2 were run, so both gates now apply to the first release built from `main`. Item 2 still requires explicit authorization before the workflow is started.
 
 These are deferred verification and integration steps, not known unfinished implementation work. No DMG or public release package has been created.

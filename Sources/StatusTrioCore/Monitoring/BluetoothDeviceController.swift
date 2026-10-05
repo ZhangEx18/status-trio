@@ -61,8 +61,10 @@ final class SystemProfilerBluetoothPairedDeviceWorker: @unchecked Sendable, Blue
         // A read that never returned would block this one behind it on the same
         // serial queue for the lifetime of the process, so retire that queue and
         // give this read a fresh one. The abandoned block keeps the old queue
-        // alive until it eventually returns, which is what lets the controller's
-        // watchdog retry a hung `/usr/sbin/system_profiler` at all.
+        // alive until it returns, which is what lets the controller's watchdog
+        // retry a hung `/usr/sbin/system_profiler` at all; the profiler's own
+        // deadline is what makes that abandoned block return instead of
+        // lingering for the life of the process.
         let generation: UInt64
         let currentQueue: DispatchQueue
         (generation, currentQueue) = stateLock.withLock {
@@ -116,23 +118,16 @@ final class SystemProfilerBluetoothPairedDeviceWorker: @unchecked Sendable, Blue
         return BluetoothDeviceKindRefinement.apply(to: devices, hidUsages: hidUsageProvider())
     }
 
+    /// Far above the report's normal build time, so only a genuinely wedged
+    /// profiler pays it.
+    private static let profilerTimeout = Duration.seconds(10)
+
     static func readSystemProfilerOutput() -> Data? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/sbin/system_profiler")
-        process.arguments = ["-json", "SPBluetoothDataType"]
-
-        let output = Pipe()
-        process.standardOutput = output
-        process.standardError = FileHandle.nullDevice
-
-        do {
-            try process.run()
-            let data = output.fileHandleForReading.readDataToEndOfFile()
-            process.waitUntilExit()
-            return process.terminationStatus == 0 ? data : nil
-        } catch {
-            return nil
-        }
+        BoundedProcessRun.run(
+            executableURL: URL(fileURLWithPath: "/usr/sbin/system_profiler"),
+            arguments: ["-json", "SPBluetoothDataType"],
+            timeout: Self.profilerTimeout
+        )
     }
 }
 
