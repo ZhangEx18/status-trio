@@ -29,7 +29,7 @@ final class BatteryTelemetryRecorderTests: XCTestCase {
         XCTAssertEqual(observation.percentage, 72)
         XCTAssertEqual(observation.batteryWatts, -18)
         XCTAssertEqual(observation.systemDischargeMinutes, 210)
-        XCTAssertEqual(observation.schemaVersion, 6)
+        XCTAssertEqual(observation.schemaVersion, 7)
         XCTAssertEqual(observation.displayedMinutes, 210)
         XCTAssertEqual(observation.displayedMinutesSource, "system")
         XCTAssertNotNil(observation.powerReadAt)
@@ -53,6 +53,8 @@ final class BatteryTelemetryRecorderTests: XCTestCase {
         )
         diagnostics.completedBandObservationCount = 4
         diagnostics.predictionMethod = "intervalProfile"
+        diagnostics.rawETA = 86.5
+        diagnostics.actualSource = "historical"
         diagnostics.nextTwoPercentMinutes = 12
         diagnostics.pendingProbeTargetPercent = 38
         diagnostics.pendingProbeBaselineMinutes = 10
@@ -91,6 +93,8 @@ final class BatteryTelemetryRecorderTests: XCTestCase {
         XCTAssertEqual(observation.estimatorValidRateCount, 8)
         XCTAssertEqual(observation.estimatorSelectedRate ?? 0, 0.216, accuracy: 0.0001)
         XCTAssertEqual(observation.estimatorPredictionMethod, "intervalProfile")
+        XCTAssertEqual(observation.estimatorRawMinutes, 86.5)
+        XCTAssertEqual(observation.estimatorActualSource, "historical")
         XCTAssertEqual(observation.estimatorCompletedBandObservationCount, 4)
         XCTAssertEqual(observation.estimatorNextTwoPercentMinutes, 12)
         XCTAssertEqual(observation.estimatorPendingProbeTargetPercent, 38)
@@ -130,7 +134,7 @@ final class BatteryTelemetryRecorderTests: XCTestCase {
         let observation = try decoder.decode(BatteryTelemetryRecorder.Observation.self,
                                              from: Data(line))
 
-        XCTAssertEqual(observation.schemaVersion, 6)
+        XCTAssertEqual(observation.schemaVersion, 7)
         XCTAssertEqual(observation.estimatorMinutes, 84)
         XCTAssertEqual(observation.profileEstimatorMinutes, 84)
         XCTAssertEqual(observation.legacyEstimatorMinutes, 132)

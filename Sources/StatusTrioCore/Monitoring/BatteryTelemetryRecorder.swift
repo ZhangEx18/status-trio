@@ -43,6 +43,9 @@ final class BatteryTelemetryRecorder: @unchecked Sendable {
         let estimatorUsedSystemEstimate: Bool?
         let estimatorChargingThermalThrottled: Bool?
         let estimatorPredictionMethod: String?
+        let estimatorRawMinutes: Double?
+        let estimatorActualSource: String?
+        let estimatorBoundaryReason: String?
         let estimatorCompletedBandObservationCount: Int
         let estimatorRecentCorrectionFactor: Double?
         let estimatorNextTwoPercentMinutes: Double?
@@ -96,7 +99,8 @@ final class BatteryTelemetryRecorder: @unchecked Sendable {
                 selectedEstimatorSource: String? = nil,
                 displayedMinutes: Int? = nil,
                 estimatorTargetPercent: Double? = nil,
-                diagnostics: BatteryTimeEstimator.Diagnostics = .init(mode: nil)) {
+                diagnostics: BatteryTimeEstimator.Diagnostics = .init(mode: nil),
+                boundaryReason: String? = nil) {
         guard reading.isPresent, reading.maxCapacity > 0 else { return }
         queue.async { [self] in
             let state = BatteryPowerState(isPresent: true,
@@ -108,13 +112,14 @@ final class BatteryTelemetryRecorder: @unchecked Sendable {
             let powerStatus = candidatePower == nil ? "unavailable"
                 : (power == nil ? "stale" : "fresh")
             let displayedMinutesSource: String? = displayedMinutes.map { minutes in
+                if diagnostics.actualSource == "systemEstimate" { return "system" }
                 if estimatorMinutes == minutes { return "estimator" }
                 let systemMinutes = reading.isCharging
                     ? reading.timeToFullChargeMinutes : reading.remainingMinutes
                 return systemMinutes == minutes ? "system" : "unknown"
             }
             let observation = Observation(
-                schemaVersion: 6,
+                schemaVersion: 7,
                 recordedAt: date,
                 percentage: Double(reading.currentCapacity) / Double(reading.maxCapacity) * 100,
                 currentCapacity: reading.currentCapacity,
@@ -156,6 +161,10 @@ final class BatteryTelemetryRecorder: @unchecked Sendable {
                 estimatorUsedSystemEstimate: diagnostics.usedSystemEstimate,
                 estimatorChargingThermalThrottled: diagnostics.chargingThermalThrottled,
                 estimatorPredictionMethod: diagnostics.predictionMethod,
+                estimatorRawMinutes: diagnostics.rawETA ?? displayedMinutes.map(Double.init),
+                estimatorActualSource: diagnostics.actualSource
+                    ?? (displayedMinutesSource == "system" ? "system" : "none"),
+                estimatorBoundaryReason: boundaryReason,
                 estimatorCompletedBandObservationCount: diagnostics.completedBandObservationCount,
                 estimatorRecentCorrectionFactor: diagnostics.recentCorrectionFactor,
                 estimatorNextTwoPercentMinutes: diagnostics.nextTwoPercentMinutes,

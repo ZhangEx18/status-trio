@@ -25,63 +25,54 @@ struct BatteryDischargeStateMachine: Sendable {
         state = .baseline
         consecutiveFastIntervals = 0
         consecutiveSlowIntervals = 0
+        lastConsumed = nil
     }
 
-    mutating func update(baseline: Double, recentIntervals: [Double]) {
-        guard baseline > 0, let latest = recentIntervals.last else {
-            if state != .highLoad { state = .baseline }
-            consecutiveFastIntervals = 0
-            consecutiveSlowIntervals = 0
-            return
-        }
+    struct Interval: Sendable {
+        let segment: Int
+        let start: Date
+        let end: Date
+        let rate: Double
+    }
+    private var lastConsumed: Interval?
 
-        if state == .highLoad, latest <= baseline * Self.highLoadExitRatio {
+    mutating func update(baseline: Double, recentIntervals: [Interval]) {
+        guard baseline.isFinite, baseline > 0 else { reset(); return }
+        for interval in recentIntervals.sorted(by: { $0.end < $1.end }) {
+            guard interval.end > interval.start, interval.rate.isFinite, interval.rate > 0 else { continue }
+            if let last = lastConsumed {
+                if interval.segment != last.segment { reset() }
+                else if interval.start < last.end || interval.end <= last.end { continue }
+            }
+            lastConsumed = interval
+            consume(baseline: baseline, latest: interval.rate)
+        }
+    }
+
+    private mutating func consume(baseline: Double, latest: Double) {
+        if (state == .highLoad && latest <= baseline * Self.highLoadExitRatio)
+            || (state == .lowLoad && latest >= baseline * Self.lowLoadExitRatio) {
             state = .baseline
             consecutiveFastIntervals = 0
             consecutiveSlowIntervals = 0
             return
         }
-        if state == .lowLoad, latest >= baseline * Self.lowLoadExitRatio {
-            state = .baseline
-            consecutiveFastIntervals = 0
-            consecutiveSlowIntervals = 0
-            return
-        }
-
-        if latest >= baseline * Self.highLoadEntryRatio {
-            consecutiveFastIntervals += 1
-        } else {
-            consecutiveFastIntervals = 0
-        }
-        if latest <= baseline * Self.lowLoadEntryRatio {
-            consecutiveSlowIntervals += 1
-        } else {
-            consecutiveSlowIntervals = 0
-        }
-        let tail = recentIntervals.suffix(Self.requiredFastIntervals)
-        let slowTail = recentIntervals.suffix(Self.requiredSlowIntervals)
-        if consecutiveFastIntervals >= Self.requiredFastIntervals
-            || (tail.count == Self.requiredFastIntervals
-                && tail.allSatisfy({ $0 >= baseline * Self.highLoadEntryRatio })) {
+        consecutiveFastIntervals = latest >= baseline * Self.highLoadEntryRatio
+            ? consecutiveFastIntervals + 1 : 0
+        consecutiveSlowIntervals = latest <= baseline * Self.lowLoadEntryRatio
+            ? consecutiveSlowIntervals + 1 : 0
+        if consecutiveFastIntervals >= Self.requiredFastIntervals {
             state = .highLoad
             consecutiveFastIntervals = Self.requiredFastIntervals
             consecutiveSlowIntervals = 0
-        } else if consecutiveSlowIntervals >= Self.requiredSlowIntervals
-            || (slowTail.count == Self.requiredSlowIntervals
-                && slowTail.allSatisfy({ $0 <= baseline * Self.lowLoadEntryRatio })) {
+        } else if consecutiveSlowIntervals >= Self.requiredSlowIntervals {
             state = .lowLoad
             consecutiveSlowIntervals = Self.requiredSlowIntervals
             consecutiveFastIntervals = 0
-        } else if latest > baseline * 1.20 {
-            state = .transient
-            consecutiveSlowIntervals = 0
-        } else if latest < baseline * 0.80 {
-            state = .transient
-            consecutiveFastIntervals = 0
+        } else if latest > baseline * 1.20 || latest < baseline * 0.80 {
+            if state != .highLoad && state != .lowLoad { state = .transient }
         } else if state != .highLoad && state != .lowLoad {
             state = .baseline
-            consecutiveFastIntervals = 0
-            consecutiveSlowIntervals = 0
         }
     }
 

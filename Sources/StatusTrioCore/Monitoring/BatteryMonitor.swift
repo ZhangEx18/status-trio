@@ -167,10 +167,11 @@ final class BatteryMonitor: BatteryMonitoring {
         let restored = storedSamplesData.flatMap {
             try? JSONDecoder().decode([BatteryTimeEstimator.Sample].self, from: $0)
         } ?? []
-        let storedProfiles = profileStore.load() ?? BatteryTimeProfileCatalog()
-        var profileCatalog = storedProfiles
+        var profileCatalog = (try? profileStore.loadOrRebuild(samples: restored, now: now))
+            ?? BatteryTimeProfileCatalog()
+        let storedProfiles = profileCatalog
         _ = profileCatalog.pruneExpired(now: now)
-        for profile in BatteryTimeProfileBuilder.latestCompleteProfiles(from: restored).profiles {
+        for profile in BatteryTimeProfileBuilder.completeProfiles(from: restored).profiles {
             _ = profileCatalog.addIfNewer(profile, now: now)
         }
         if profileCatalog != storedProfiles { profileStore.save(profileCatalog) }
@@ -361,7 +362,8 @@ final class BatteryMonitor: BatteryMonitoring {
                 displayedMinutes: reading.isCharging
                     ? status.timeToFullChargeMinutes : status.remainingMinutes,
                 estimatorTargetPercent: chargingTarget,
-                diagnostics: timeEstimator.diagnostics
+                diagnostics: timeEstimator.diagnostics,
+                boundaryReason: timeEstimator.persistedSamples.last?.boundaryReason?.rawValue
             )
         } else {
             timeEstimator.resetCurrentPrediction()

@@ -81,8 +81,8 @@ final class BatteryMonitorTests: XCTestCase {
                                      defaults: defaults)
 
         XCTAssertEqual(defaults.data(forKey: "battery.timeEstimator.samples.v1"), legacyData)
-        let profileData = try XCTUnwrap(defaults.data(forKey: BatteryTimeProfileStore.key))
-        let catalog = try JSONDecoder().decode(BatteryTimeProfileCatalog.self, from: profileData)
+        let profileData = try XCTUnwrap(defaults.data(forKey: BatteryTimeProfileStore.modelKey))
+        let catalog = try JSONDecoder().decode(BatteryTimeProfileStore.Model.self, from: profileData).catalog
         XCTAssertEqual(Set(catalog.profiles.map(\.direction)), [.charging, .discharging])
         monitor.stop()
     }
@@ -129,7 +129,7 @@ final class BatteryMonitorTests: XCTestCase {
                 .map { .init(lowerPercent: $0, minutes: 2) }
         )
         let catalog = BatteryTimeProfileCatalog(profiles: [deviceProfile, dischargeProfile])
-        defaults.set(try JSONEncoder().encode(catalog), forKey: BatteryTimeProfileStore.key)
+        BatteryTimeProfileStore(defaults: defaults).save(catalog)
         let recorder = BatteryTelemetryRecorder(directory: directory, powerReader: { _, _ in nil })
         let monitor = BatteryMonitor(
             reader: FakeBatteryReader(result: BatteryReading(

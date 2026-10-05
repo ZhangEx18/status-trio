@@ -2,25 +2,100 @@ import XCTest
 @testable import StatusTrioCore
 
 final class BatteryTimeEstimatorTests: XCTestCase {
+    private func interval(_ rate: Double, index: Int = 0) -> BatteryDischargeStateMachine.Interval {
+        .init(segment: 0, start: Date(timeIntervalSince1970: Double(index * 60)),
+              end: Date(timeIntervalSince1970: Double((index + 1) * 60)), rate: rate)
+    }
+
+    func testRepeatedFastIntervalDoesNotConfirmHighLoad() {
+        var machine = BatteryDischargeStateMachine()
+        for _ in 0..<5 { machine.update(baseline: 1, recentIntervals: [interval(1.4)]) }
+        XCTAssertEqual(machine.state, .transient)
+    }
+
+    func testDirtySegmentDoesNotSeedAProfileAcrossBoundary() {
+        let start = Date(timeIntervalSince1970: 1000)
+        let samples = (85...95).enumerated().map { offset, percentage in
+            BatteryTimeEstimator.Sample(date: start.addingTimeInterval(Double(offset * 60)),
+                percentage: Double(percentage), charging: true, target: 95,
+                segment: percentage < 88 ? 0 : 1)
+        }
+        let estimator = BatteryTimeEstimator(samples: samples)
+        XCTAssertFalse(estimator.completedBands(mode: .charging, target: 95,
+            segmentPolicy: .verifiedContinuousSamples).contains { $0.lowerPercent == 85 })
+    }
+
+    func testSystemChargeEstimateIsUsedDirectlyWithoutTaper() {
+        var estimator = BatteryTimeEstimator()
+        let start = Date(timeIntervalSince1970: 1000)
+        _ = estimator.add(date: start, percentage: 90, charging: true, target: 95,
+                          systemMinutes: 48)
+        XCTAssertEqual(estimator.add(date: start.addingTimeInterval(60), percentage: 90,
+            charging: true, target: 95, systemMinutes: 48), 48)
+    }
+
+    func testHighChargePercentCannotCreateAPhysicalReference() {
+        var estimator = BatteryTimeEstimator()
+        let start = Date(timeIntervalSince1970: 1000)
+        _ = estimator.add(date: start, percentage: 85, charging: true, target: 95)
+        XCTAssertNil(estimator.add(date: start.addingTimeInterval(60), percentage: 86,
+                                  charging: true, target: 95))
+    }
+
+    func testDirtyBoundaryClearsChargePhysicalReference() {
+        var estimator = BatteryTimeEstimator()
+        let start = Date(timeIntervalSince1970: 1000)
+        _ = estimator.add(date: start, percentage: 70, charging: true, target: 95)
+        XCTAssertNotNil(estimator.add(date: start.addingTimeInterval(60), percentage: 71,
+                                     charging: true, target: 95))
+        estimator.markDirtyInterval()
+        XCTAssertNil(estimator.add(date: start.addingTimeInterval(120), percentage: 72,
+                                  charging: true, target: 95))
+    }
+
+    func testShortDirtyBoundaryDoesNotCreateAFragmentRate() {
+        var estimator = BatteryTimeEstimator()
+        let start = Date(timeIntervalSince1970: 1000)
+        for minute in 0...5 {
+            if minute == 3 { estimator.markDirtyInterval() }
+            _ = estimator.add(date: start.addingTimeInterval(Double(minute * 60)),
+                              percentage: Double(80 - minute), charging: false, target: 0)
+        }
+        XCTAssertEqual(estimator.diagnostics.validRateCount, 0)
+        XCTAssertNil(estimator.diagnostics.rawETA)
+    }
+
+    func testUnchangedChargePercentReevaluatesSystemEstimateAvailability() {
+        var estimator = BatteryTimeEstimator()
+        let start = Date(timeIntervalSince1970: 1000)
+        XCTAssertEqual(estimator.add(date: start, percentage: 90, charging: true,
+            target: 95, systemMinutes: 60), 60)
+        XCTAssertNil(estimator.add(date: start.addingTimeInterval(15), percentage: 90,
+            charging: true, target: 95, systemMinutes: nil))
+        XCTAssertEqual(estimator.add(date: start.addingTimeInterval(30), percentage: 90,
+            charging: true, target: 95, systemMinutes: 48), 48)
+        XCTAssertEqual(estimator.persistedSamples.count, 1)
+    }
+
     func testSingleSlowIntervalUsesMinuteWeightedTransientCorrection() {
         var stateMachine = BatteryDischargeStateMachine()
         let baselineRate = 1.0 / 9.0
         let slowRate = 1.0 / 15.0
 
-        stateMachine.update(baseline: baselineRate, recentIntervals: [slowRate])
+        stateMachine.update(baseline: baselineRate, recentIntervals: [interval(slowRate)])
 
         XCTAssertEqual(stateMachine.state, .transient)
         let selected = stateMachine.selectedRate(baseline: baselineRate, recent: slowRate)
         XCTAssertEqual(1 / selected, 12.6, accuracy: 0.01)
 
-        stateMachine.update(baseline: baselineRate, recentIntervals: [baselineRate])
+        stateMachine.update(baseline: baselineRate, recentIntervals: [interval(baselineRate, index: 3)])
         XCTAssertEqual(stateMachine.state, .baseline)
     }
 
     func testTwoFastIntervalsEnterHighLoadForResponsiveForecasts() {
         var stateMachine = BatteryDischargeStateMachine()
-        for _ in 0..<2 {
-            stateMachine.update(baseline: 1.0, recentIntervals: [1.4])
+        for index in 0..<2 {
+            stateMachine.update(baseline: 1.0, recentIntervals: [interval(1.4, index: index)])
         }
         XCTAssertEqual(stateMachine.state, .highLoad)
     }
@@ -30,12 +105,12 @@ final class BatteryTimeEstimatorTests: XCTestCase {
         let baselineRate = 1.0
         let slowRate = 0.7
 
-        for _ in 0..<3 {
-            stateMachine.update(baseline: baselineRate, recentIntervals: [slowRate])
+        for index in 0..<3 {
+            stateMachine.update(baseline: baselineRate, recentIntervals: [interval(slowRate, index: index)])
         }
         XCTAssertEqual(stateMachine.state, .lowLoad)
 
-        stateMachine.update(baseline: baselineRate, recentIntervals: [baselineRate])
+        stateMachine.update(baseline: baselineRate, recentIntervals: [interval(baselineRate, index: 3)])
         XCTAssertEqual(stateMachine.state, .baseline)
     }
 
@@ -59,17 +134,16 @@ final class BatteryTimeEstimatorTests: XCTestCase {
                           estimator.persistedSamples[2].segment)
     }
 
-    func testChargeSlowdownIsMarkedThermalAndDoesNotTrainAChargeBand() {
+    func testObservedChargeSlowdownKeepsMeasuredSourceAndReportsReferenceChange() {
         var estimator = BatteryTimeEstimator()
         let start = Date(timeIntervalSince1970: 1_000)
-
-        _ = estimator.add(date: start, percentage: 50,
-                          charging: true, target: 95, systemMinutes: 45)
+        _ = estimator.add(date: start, percentage: 50, charging: true, target: 95)
         _ = estimator.add(date: start.addingTimeInterval(60), percentage: 51,
-                          charging: true, target: 95, systemMinutes: 100)
-
+                          charging: true, target: 95)
+        _ = estimator.add(date: start.addingTimeInterval(180), percentage: 52,
+                          charging: true, target: 95)
         XCTAssertTrue(estimator.diagnostics.chargingThermalThrottled)
-        XCTAssertEqual(estimator.persistedSamples.last?.source, .thermal)
+        XCTAssertEqual(estimator.persistedSamples.last?.source, .iops)
         XCTAssertEqual(estimator.diagnostics.completedBandObservationCount, 0)
     }
 
@@ -286,8 +360,9 @@ final class BatteryTimeEstimatorTests: XCTestCase {
             _ = estimator.add(date: start.addingTimeInterval(Double(minute * 60)),
                               percentage: Double(50 + minute), charging: true, target: 95)
         }
-        XCTAssertNil(estimator.add(date: start.addingTimeInterval(31 * 60),
+        XCTAssertNotNil(estimator.add(date: start.addingTimeInterval(31 * 60),
                                    percentage: 80, charging: true, target: 95))
+        XCTAssertEqual(estimator.diagnostics.actualSource, "physicalFallback")
         XCTAssertEqual(estimator.diagnostics.missingChargeBandStartPercent, 80)
     }
 
@@ -305,9 +380,10 @@ final class BatteryTimeEstimatorTests: XCTestCase {
         for index in 0..<15 {
             _ = estimator.add(date: Date(timeIntervalSince1970: Double(index * 60)), percentage: 60 + Double(index), charging: true, target: 95)
         }
-        // The observed 60–75% segment must not be extrapolated through the
-        // unobserved 75–95% taper; the monitor falls back to the OS estimate.
-        XCTAssertNil(estimator.add(date: Date(timeIntervalSince1970: 900), percentage: 75, charging: true, target: 95))
+        // A measured sub-80% reference may fill missing bands with one taper.
+        XCTAssertEqual(estimator.add(date: Date(timeIntervalSince1970: 900), percentage: 75,
+            charging: true, target: 95), 24)
+        XCTAssertEqual(estimator.diagnostics.actualSource, "physicalFallback")
     }
 
     func testDirectionChangeResetsHistory() {
@@ -406,8 +482,9 @@ final class BatteryTimeEstimatorTests: XCTestCase {
             _ = estimator.add(date: start.addingTimeInterval(Double((31 + minute) * 60)),
                               percentage: Double(50 + minute), charging: true, target: 95)
         }
-        XCTAssertNil(estimator.add(date: start.addingTimeInterval(72 * 60),
+        XCTAssertNotNil(estimator.add(date: start.addingTimeInterval(72 * 60),
                                    percentage: 90, charging: true, target: 95))
+        XCTAssertEqual(estimator.diagnostics.actualSource, "physicalFallback")
         _ = estimator.add(date: start.addingTimeInterval(73 * 60), percentage: 95,
                           charging: false, target: nil, connectedToPower: true)
         let discharge = estimator.add(date: start.addingTimeInterval(74 * 60),

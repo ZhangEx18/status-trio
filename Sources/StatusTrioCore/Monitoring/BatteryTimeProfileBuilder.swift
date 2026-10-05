@@ -10,6 +10,14 @@ struct BatteryTimeProfileBuilder {
             .max { $0.sessionEnd < $1.sessionEnd }
     }
 
+    static func completeProfiles(from samples: [BatteryTimeEstimator.Sample]) -> BatteryTimeProfileCatalog {
+        BatteryTimeProfileCatalog(profiles:
+            completedProfiles(from: samples, direction: .charging,
+                targetPercent: BatteryTimeProfile.profiledChargeTargetPercent)
+            + completedProfiles(from: samples, direction: .discharging,
+                targetPercent: BatteryTimeProfile.profiledDischargeReservePercent))
+    }
+
     static func latestCompleteProfiles(
         from samples: [BatteryTimeEstimator.Sample]
     ) -> BatteryTimeProfileCatalog {
@@ -90,7 +98,8 @@ struct BatteryTimeProfileBuilder {
         targetPercent: Int
     ) -> Bool {
         guard sample.source == .iops, sample.mode == .idle, sample.connectedToPower else { return false }
-        return direction == .charging || sample.percentage <= Double(targetPercent)
+        return direction == .charging && sample.percentage >= Double(targetPercent)
+            && sample.boundaryReason == .powerTransition
     }
 
     private static func canContinue(
@@ -99,11 +108,11 @@ struct BatteryTimeProfileBuilder {
         direction: BatteryTimeProfile.Direction
     ) -> Bool {
         guard let previous = session.last else { return false }
-        let gap = sample.date.timeIntervalSince(previous.date)
-        guard gap > 0, gap <= BatteryTimeEstimator.maximumGap else { return false }
-        return direction == .charging
-            ? sample.percentage >= previous.percentage
-            : sample.percentage <= previous.percentage
+        if direction == .charging, sample.mode == .idle {
+            return BatterySampleContinuity.canFinishCharge(previous, sample,
+                target: Int(previous.target ?? -1))
+        }
+        return BatterySampleContinuity.canContinue(previous, sample)
     }
 
     private static func completedProfile(
@@ -197,7 +206,8 @@ struct BatteryTimeProfileBuilder {
         for index in 0..<(samples.count - 2) {
             let previous = samples[index]
             let next = samples[index + 1]
-            guard isActiveCharge(previous), isActiveCharge(next) else { continue }
+            guard isActiveCharge(previous), isActiveCharge(next),
+                  BatterySampleContinuity.canContinue(previous, next) else { continue }
             let gap = next.date.timeIntervalSince(previous.date)
             let change = next.percentage - previous.percentage
             guard gap > 0, gap <= BatteryTimeEstimator.maximumGap,
@@ -216,6 +226,9 @@ struct BatteryTimeProfileBuilder {
             let isTerminal = index == samples.count - 1
             guard current.source == .iops, current.connectedToPower,
                   isTerminal ? current.mode == .idle : isActiveCharge(current) else { return nil }
+            guard isTerminal
+                ? BatterySampleContinuity.canFinishCharge(previous, current, target: targetPercent)
+                : BatterySampleContinuity.canContinue(previous, current) else { return nil }
             let gap = current.date.timeIntervalSince(previous.date)
             let change = current.percentage - previous.percentage
             guard gap > 0, gap <= BatteryTimeEstimator.maximumGap,

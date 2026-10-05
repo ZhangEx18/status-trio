@@ -19,6 +19,8 @@ struct BatteryTimeEstimator {
         var completedBandObservationCount = 0
         var recentCorrectionFactor: Double?
         var predictionMethod: String?
+        var rawETA: Double?
+        var actualSource: String? = "unavailable"
         var nextTwoPercentMinutes: Double?
         var pendingProbeTargetPercent: Double?
         var pendingProbeBaselineMinutes: Double?
@@ -47,11 +49,13 @@ struct BatteryTimeEstimator {
         let target: Double?
         let connectedToPower: Bool
         let segment: Int
+        enum BoundaryReason: String, Codable { case sleepWake, restore, gap, powerTransition, target, capacityJump }
+        let boundaryReason: BoundaryReason?
         let source: Source
 
         init(date: Date, percentage: Double, charging: Bool, target: Double?,
              connectedToPower: Bool? = nil, segment: Int = 0,
-             source: Source = .iops) {
+             source: Source = .iops, boundaryReason: BoundaryReason? = nil) {
             self.date = date
             self.percentage = percentage
             self.charging = charging
@@ -59,6 +63,7 @@ struct BatteryTimeEstimator {
             self.connectedToPower = connectedToPower ?? charging
             self.segment = segment
             self.source = source
+            self.boundaryReason = boundaryReason
         }
 
         // The previous on-disk format had no power-state marker or segment ID.
@@ -72,13 +77,14 @@ struct BatteryTimeEstimator {
             connectedToPower = try values.decodeIfPresent(Bool.self, forKey: .connectedToPower) ?? charging
             segment = try values.decodeIfPresent(Int.self, forKey: .segment) ?? 0
             source = try values.decodeIfPresent(Source.self, forKey: .source) ?? .legacy
+            boundaryReason = try values.decodeIfPresent(BoundaryReason.self, forKey: .boundaryReason)
             let oldTarget = try values.decodeIfPresent(Double.self, forKey: .target)
             target = values.contains(.connectedToPower) ? oldTarget
                 : (charging && oldTarget == 100 ? nil : oldTarget)
         }
 
         private enum CodingKeys: String, CodingKey {
-            case date, percentage, charging, target, connectedToPower, segment, source
+            case date, percentage, charging, target, connectedToPower, segment, source, boundaryReason
         }
 
         var mode: Mode {
@@ -97,6 +103,7 @@ struct BatteryTimeEstimator {
     private struct Rate {
         let value: Double             // percentage points per minute
         let duration: TimeInterval
+        var startDate: Date { date.addingTimeInterval(-duration) }
         let date: Date
         let segment: Int
         let midpoint: Double
@@ -137,6 +144,7 @@ struct BatteryTimeEstimator {
     private var lastDisplayed: (date: Date, minutes: Double, segment: Int)?
     private var liveSegmentStartedAt: Date?
     private var nextSampleStartsSegment = false
+    private var pendingBoundaryReason: Sample.BoundaryReason?
     private(set) var diagnostics = Diagnostics(mode: nil)
     private var pendingProbe: ShortProbe?
     private var lastProbeMinutesPerPoint: Double?
@@ -173,6 +181,7 @@ struct BatteryTimeEstimator {
         lastDisplayed = nil
         liveSegmentStartedAt = nil
         nextSampleStartsSegment = true
+        pendingBoundaryReason = .restore
         diagnostics = Diagnostics(mode: nil)
         pendingProbe = nil
         lastProbeMinutesPerPoint = nil
@@ -183,8 +192,9 @@ struct BatteryTimeEstimator {
     /// Invalidates only the live interval after sleep or a power-source
     /// transition.  Historical samples remain available for the long-term
     /// baseline, but no rate is allowed to bridge the dirty interval.
-    mutating func markDirtyInterval() {
+    mutating func markDirtyInterval(reason: Sample.BoundaryReason = .sleepWake) {
         nextSampleStartsSegment = true
+        pendingBoundaryReason = reason
         clearLiveFilters()
         dischargeStateMachine.reset()
         chargingReferenceMinutesPerPoint = nil
@@ -200,12 +210,15 @@ struct BatteryTimeEstimator {
               target == nil || (target!.isFinite && (0...100).contains(target!)) else { return nil }
         let mode: Mode = connected ? (charging ? .charging : .idle) : .discharging
         let normalizedTarget = mode == .charging ? target : (mode == .discharging ? 0 : nil)
+        var shouldRecord = true
         if let last = samples.last {
             guard date > last.date else { return nil }
             if date.timeIntervalSince(last.date) < 60, last.percentage == percentage,
-               last.mode == mode,
-               last.target == normalizedTarget, !nextSampleStartsSegment {
-                return lastDisplayed.map { Int($0.minutes.rounded()) }
+               last.mode == mode, last.target == normalizedTarget, !nextSampleStartsSegment {
+                if mode != .charging { return lastDisplayed.map { Int($0.minutes.rounded()) } }
+                // Re-evaluate the live system estimate without inventing another
+                // unchanged capacity observation or carrying its stale result forward.
+                shouldRecord = false
             }
         }
         diagnostics = Diagnostics(mode: mode == .idle ? "mixedPower" : String(describing: mode))
@@ -219,7 +232,14 @@ struct BatteryTimeEstimator {
         let boundary = nextSampleStartsSegment || last.map {
             $0.mode != mode || $0.target != normalizedTarget || gap > Self.maximumGap
         } == true || implausible
+        let boundaryReason: Sample.BoundaryReason? = pendingBoundaryReason
+            ?? (gap > Self.maximumGap ? .gap : nil)
+            ?? (implausible ? .capacityJump : nil)
+            ?? (last.map { $0.mode != mode } == true ? .powerTransition : nil)
+            ?? (last.map { $0.target != normalizedTarget } == true ? .target : nil)
         if boundary {
+            dischargeStateMachine.reset()
+            chargingReferenceMinutesPerPoint = nil
             clearLiveFilters()
             liveSegmentStartedAt = date
             if last?.mode != mode || gap > Self.maximumGap {
@@ -231,29 +251,26 @@ struct BatteryTimeEstimator {
         }
         let segment = (last?.segment ?? 0) + (boundary ? 1 : 0)
         nextSampleStartsSegment = false
-        let hadChargingReference = chargingReferenceMinutesPerPoint != nil
+        pendingBoundaryReason = nil
         var thermalThrottled = false
-        if mode == .charging,
-           let target = normalizedTarget,
-           let systemMinutes,
-           systemMinutes > 0,
-           target > percentage {
-            let candidate = Double(systemMinutes) / (target - percentage)
-            if let previous = chargingReferenceMinutesPerPoint,
-               candidate.isFinite,
-               candidate > previous * 1.5 {
-                thermalThrottled = true
-            }
-            if candidate.isFinite, (0.05...30).contains(candidate),
-               chargingReferenceMinutesPerPoint.map({ candidate <= $0 * 1.5 }) ?? true {
+        let sample = Sample(date: date, percentage: percentage, charging: charging,
+                            target: normalizedTarget, connectedToPower: connected, segment: segment,
+                            source: .iops, boundaryReason: boundaryReason)
+        if mode == .charging, let last, percentage < 80,
+           BatterySampleContinuity.canContinue(last, sample), change > 0 {
+            let candidate = gap / 60 / change
+            thermalThrottled = chargingReferenceMinutesPerPoint.map { candidate > $0 * 1.5 } ?? false
+            if (0.05...30).contains(candidate), !thermalThrottled {
                 chargingReferenceMinutesPerPoint = candidate
             }
         }
+        // Compatibility diagnostic: a rate slowdown is not confirmed thermal throttling.
         diagnostics.chargingThermalThrottled = thermalThrottled
-        let sample = Sample(date: date, percentage: percentage, charging: charging,
-                            target: normalizedTarget, connectedToPower: connected, segment: segment,
-                            source: thermalThrottled ? .thermal : .iops)
-        samples.append(sample)
+        let recorded = Sample(date: sample.date, percentage: sample.percentage,
+            charging: sample.charging, target: sample.target, connectedToPower: sample.connectedToPower,
+            segment: sample.segment, source: .iops,
+            boundaryReason: sample.boundaryReason)
+        if shouldRecord { samples.append(recorded) }
         samples.removeAll { date.timeIntervalSince($0.date) > Self.persistenceHorizon }
         if samples.count > Self.maximumPersistedSamples {
             samples.removeFirst(samples.count - Self.maximumPersistedSamples)
@@ -262,6 +279,10 @@ struct BatteryTimeEstimator {
 
         let bands = completedBands(mode: mode, target: normalizedTarget)
         diagnostics.completedBandObservationCount = bands.count
+        if let last, !BatterySampleContinuity.canContinue(last, recorded) {
+            pendingProbe = nil
+            lastProbeMinutesPerPoint = nil
+        }
         updateShortProbe(date: date, percentage: percentage, mode: mode,
                          target: normalizedTarget, segment: segment, prior: last, bands: bands)
         let rawMinutes: Double?
@@ -333,12 +354,22 @@ struct BatteryTimeEstimator {
             }
         } else {
             guard let target = normalizedTarget, target > percentage else { return nil }
-            rawMinutes = profileMinutes(from: percentage, to: target, mode: mode,
-                                        bands: bands, segment: segment, date: date)
-                ?? (hadChargingReference
-                    ? physicalChargeMinutes(from: percentage, to: target)
-                    : nil)
+            if let profile = profileMinutes(from: percentage, to: target, mode: mode,
+                                             bands: bands, segment: segment, date: date) {
+                rawMinutes = profile
+                diagnostics.actualSource = "historicalCurve"
+            } else if let systemMinutes, (1...1440).contains(systemMinutes) {
+                rawMinutes = Double(systemMinutes)
+                diagnostics.usedSystemEstimate = true
+                diagnostics.predictionMethod = "systemEstimate"
+                diagnostics.actualSource = "systemEstimate"
+            } else {
+                rawMinutes = physicalChargeMinutes(from: percentage, to: target)
+                diagnostics.actualSource = rawMinutes == nil ? "unavailable" : "physicalFallback"
+            }
         }
+        diagnostics.rawETA = rawMinutes
+        if diagnostics.actualSource == "unavailable", rawMinutes != nil { diagnostics.actualSource = diagnostics.predictionMethod }
         guard let rawMinutes, rawMinutes.isFinite, (1...1440).contains(rawMinutes) else { return nil }
         let displayed: Double
         if diagnostics.usedSystemEstimate {
@@ -382,7 +413,7 @@ struct BatteryTimeEstimator {
     }
 
     /// Uses non-overlapping adjacent capacity intervals for the live load
-    /// detector.  A single fast interval is only a transient; three in a row
+    /// detector. A single fast interval is only a transient; two in a row
     /// are required before the high-load state is entered.
     private func recentDischargeIntervals(date: Date, segment: Int) -> [Rate] {
         let current = samples.filter {
@@ -425,7 +456,7 @@ struct BatteryTimeEstimator {
                                       through end: Int) -> Bool {
         guard start < end else { return true }
         for index in (start + 1)...end {
-            if samples[index].date.timeIntervalSince(samples[index - 1].date) > Self.maximumGap {
+            if !BatterySampleContinuity.canContinue(samples[index - 1], samples[index]) {
                 return false
             }
         }
@@ -439,7 +470,7 @@ struct BatteryTimeEstimator {
         let intervals = recentDischargeIntervals(date: date, segment: segment)
         dischargeStateMachine.update(
             baseline: baseline,
-            recentIntervals: intervals.map(\.value)
+            recentIntervals: intervals.map { .init(segment: $0.segment, start: $0.startDate, end: $0.date, rate: $0.value) }
         )
     }
 
@@ -537,9 +568,8 @@ struct BatteryTimeEstimator {
             while start > 0 {
                 let prior = samples[start - 1]
                 let later = samples[start]
-                guard prior.segment == next.segment, prior.mode == mode,
-                      prior.target == target,
-                      later.date.timeIntervalSince(prior.date) <= Self.maximumGap else { break }
+                guard BatterySampleContinuity.canContinue(prior, later),
+                      prior.mode == mode, prior.target == target else { break }
                 start -= 1
                 let duration = next.date.timeIntervalSince(prior.date)
                 if duration < (mode == .charging ? 5 : 10) * 60 { continue }
@@ -574,8 +604,7 @@ struct BatteryTimeEstimator {
                 previous = nil
                 continue
             }
-            if let previous,
-               sample.date.timeIntervalSince(previous.date) > Self.maximumGap {
+            if let previous, !BatterySampleContinuity.canContinue(previous, sample) {
                 anchor = sample
             }
             guard let start = anchor else {
@@ -656,7 +685,7 @@ struct BatteryTimeEstimator {
                 continue
             }
             guard let prior = previous,
-                  segmentPolicy == .verifiedContinuousSamples || prior.segment == sample.segment else {
+                  BatterySampleContinuity.canContinue(prior, sample) else {
                 previous = sample
                 let boundary = (sample.percentage / 5).rounded() * 5
                 crossing = abs(sample.percentage - boundary) < 0.000001
@@ -740,7 +769,7 @@ struct BatteryTimeEstimator {
             let crosses = mode == .charging
                 ? earlier.percentage <= threshold && later.percentage >= threshold
                 : earlier.percentage >= threshold && later.percentage <= threshold
-            guard crosses else { continue }
+            guard crosses, hasContinuousSamples(current, from: index - 1, through: current.count - 1) else { continue }
             let change = later.percentage - earlier.percentage
             let crossedAt = change == 0 ? earlier.date : earlier.date.addingTimeInterval(
                 later.date.timeIntervalSince(earlier.date)

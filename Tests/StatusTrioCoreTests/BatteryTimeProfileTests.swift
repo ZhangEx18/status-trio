@@ -22,25 +22,9 @@ final class BatteryTimeProfileTests: XCTestCase {
         samples += makeSamples(94...95, start: start, offsetMinutes: 76,
                                charging: true, target: 95, connected: true, segment: 6)
 
-        let profile = try XCTUnwrap(BatteryTimeProfileBuilder.latestCompleteProfile(
-            from: samples,
-            direction: .charging,
-            targetPercent: 95
-        ))
-
-        XCTAssertEqual(profile.sessionStartPercent, 19)
-        XCTAssertEqual(profile.sessionEndPercent, 95)
-        let catalog = BatteryTimeProfileCatalog(profiles: [profile])
-        XCTAssertNotNil(catalog.minutesPerBand(direction: .charging, targetPercent: 95,
-                                               lowerPercent: 20, now: profile.sessionEnd))
-        XCTAssertNil(catalog.minutesPerBand(direction: .charging, targetPercent: 95,
-                                            lowerPercent: 50, now: profile.sessionEnd),
-                     "The 50–55% band crosses a mixed-power segment.")
-        XCTAssertNotNil(catalog.minutesPerBand(direction: .charging, targetPercent: 95,
-                                               lowerPercent: 85, now: profile.sessionEnd))
-        XCTAssertNil(catalog.minutesPerBand(direction: .charging, targetPercent: 95,
-                                            lowerPercent: 90, now: profile.sessionEnd),
-                     "Thermal samples must not train a band.")
+        XCTAssertNil(BatteryTimeProfileBuilder.latestCompleteProfile(
+            from: samples, direction: .charging, targetPercent: 95),
+            "Separate power/thermal segments cannot be stitched into one complete profile.")
     }
 
     func testPartialSessionsDoNotReplaceTheCompletedProfile() throws {
@@ -60,7 +44,8 @@ final class BatteryTimeProfileTests: XCTestCase {
         var samples = makeSamples(19...94, start: start, offsetMinutes: 0,
                                   charging: true, target: 95, connected: true, segment: 1)
         samples.append(.init(date: start.addingTimeInterval(76 * 60), percentage: 95,
-                             charging: false, target: nil, connectedToPower: true, segment: 2))
+                             charging: false, target: nil, connectedToPower: true, segment: 2,
+                             boundaryReason: .powerTransition))
 
         let profile = try XCTUnwrap(BatteryTimeProfileBuilder.latestCompleteProfile(
             from: samples, direction: .charging, targetPercent: 95
@@ -134,12 +119,9 @@ final class BatteryTimeProfileTests: XCTestCase {
         samples.append(.init(date: start.addingTimeInterval(76 * 60), percentage: 95,
                              charging: false, target: nil, connectedToPower: true, segment: 2))
 
-        let profile = try XCTUnwrap(BatteryTimeProfileBuilder.latestCompleteProfile(
-            from: samples, direction: .charging, targetPercent: 95
-        ))
-
-        XCTAssertNil(profile.bands.first(where: { $0.lowerPercent == 90 }),
-                     "Thermal-tagged capacity samples must not train the terminal band.")
+        XCTAssertNil(BatteryTimeProfileBuilder.latestCompleteProfile(
+            from: samples, direction: .charging, targetPercent: 95),
+            "Thermal-tagged samples cannot connect a partial session to its terminal.")
     }
 
     func testReserveReportedAsPluggedIdleCompletesDischargeWithoutBridgingTheTransition() throws {
@@ -154,17 +136,12 @@ final class BatteryTimeProfileTests: XCTestCase {
         samples.append(.init(date: start.addingTimeInterval(180 * 60), percentage: 5,
                              charging: false, target: nil, connectedToPower: true, segment: 2))
 
-        let profile = try XCTUnwrap(BatteryTimeProfileBuilder.latestCompleteProfile(
-            from: samples, direction: .discharging, targetPercent: 5
-        ))
-
-        XCTAssertEqual(profile.sessionEndPercent, 5)
-        XCTAssertNil(BatteryTimeProfileCatalog(profiles: [profile]).minutesPerBand(
-            direction: .discharging, targetPercent: 5, lowerPercent: 5, now: profile.sessionEnd
-        ), "The power transition cannot train the 5–10% band.")
+        XCTAssertNil(BatteryTimeProfileBuilder.latestCompleteProfile(
+            from: samples, direction: .discharging, targetPercent: 5),
+            "A plugged idle reading does not prove the discharge target was reached continuously.")
     }
 
-    func testContinuousRateResetCanCompleteABandWithoutCrossingSleepOrPowerState() throws {
+    func testUnknownSegmentResetCannotCompleteABand() throws {
         let start = Date(timeIntervalSince1970: 1_000)
         let firstSegment = stride(from: 95, through: 10, by: -1).enumerated().map { index, percentage in
             BatteryTimeEstimator.Sample(
@@ -180,15 +157,9 @@ final class BatteryTimeProfileTests: XCTestCase {
                 connectedToPower: false, segment: 2
             )
         }
-        let profile = try XCTUnwrap(BatteryTimeProfileBuilder.latestCompleteProfile(
-            from: firstSegment + secondSegment,
-            direction: .discharging,
-            targetPercent: 5
-        ))
-
-        XCTAssertEqual(BatteryTimeProfileCatalog(profiles: [profile]).minutesPerBand(
-            direction: .discharging, targetPercent: 5, lowerPercent: 5, now: profile.sessionEnd
-        ), 5)
+        XCTAssertNil(BatteryTimeProfileBuilder.latestCompleteProfile(
+            from: firstSegment + secondSegment, direction: .discharging, targetPercent: 5),
+            "An unlabelled old segment reset must be treated as a boundary.")
     }
 
     func testDischargeProfileIsNotCreatedUntilFivePercentIsObserved() throws {
@@ -250,7 +221,7 @@ final class BatteryTimeProfileTests: XCTestCase {
         let discharge = try XCTUnwrap(profiles.profiles.first { $0.direction == .discharging })
 
         XCTAssertEqual(charge.targetPercent, 95)
-        XCTAssertEqual(charge.sessionStartPercent, 19)
+        XCTAssertEqual(charge.sessionStartPercent, 51)
         XCTAssertEqual(charge.sessionEndPercent, 95)
         XCTAssertEqual(discharge.targetPercent, 5)
         XCTAssertEqual(discharge.sessionStartPercent, 95)
