@@ -46,6 +46,8 @@ private struct BatteryEstimatorContext: Sendable {
     let mode: BatteryDataCleaner.Mode?
     let chargeTarget: Double?
     let systemEstimateMinutes: Int?
+    let lowPowerMode: Bool?
+    let maximumCapacity: Int?
 }
 
 private struct BatteryEstimatorForecasts: Sendable {
@@ -138,6 +140,8 @@ final class BatteryMonitor: BatteryMonitoring {
     private var timeEstimator = BatteryTimeEstimator()
     private var legacyTimeEstimator = BatteryTimeEstimator()
     private var lastProfileCaptureKey: String?
+    private var chargingPauseSince: Date?
+    private var chargingPauseState = false
     private let telemetryRecorder: BatteryTelemetryRecorder?
 
     init(
@@ -309,6 +313,14 @@ final class BatteryMonitor: BatteryMonitoring {
                 isPresent: reading.isPresent
             )
             let exactPercentage = cleaned?.percentage ?? 0
+            if reading.isConnectedToPower && !reading.isCharging {
+                if chargingPauseSince == nil { chargingPauseSince = now }
+                let nearLimit = reading.chargeLimit.map { exactPercentage >= Double($0 - 3) } ?? false
+                chargingPauseState = nearLimit && now.timeIntervalSince(chargingPauseSince!) >= 120
+            } else {
+                chargingPauseSince = nil
+                chargingPauseState = false
+            }
             let percentage = Int(exactPercentage.rounded())
             let reachedLimit = reading.isConnectedToPower && !reading.isCharging
                 && reading.chargeLimit.map { abs(percentage - $0) <= 3 } == true
@@ -317,10 +329,12 @@ final class BatteryMonitor: BatteryMonitoring {
             let forecasts = calculateEstimates(BatteryEstimatorContext(
                 date: now,
                 percentage: exactPercentage,
-                mode: cleaned?.mode,
+                mode: chargingPauseState ? nil : cleaned?.mode,
                 chargeTarget: chargingTarget,
                 systemEstimateMinutes: reading.isCharging
-                    ? reading.timeToFullChargeMinutes : reading.remainingMinutes
+                    ? reading.timeToFullChargeMinutes : reading.remainingMinutes,
+                lowPowerMode: lowPowerModeProvider(),
+                maximumCapacity: reading.maxCapacity
             ))
             let profileEstimate = forecasts.profile
             let legacyEstimate = forecasts.legacy
@@ -363,7 +377,10 @@ final class BatteryMonitor: BatteryMonitoring {
                     ? status.timeToFullChargeMinutes : status.remainingMinutes,
                 estimatorTargetPercent: chargingTarget,
                 diagnostics: timeEstimator.diagnostics,
-                boundaryReason: timeEstimator.persistedSamples.last?.boundaryReason?.rawValue
+                boundaryReason: timeEstimator.persistedSamples.last?.boundaryReason?.rawValue,
+                lowPowerMode: lowPowerModeProvider(),
+                chargingPauseState: chargingPauseState,
+                chargingPauseReason: chargingPauseState ? "nearLimitNoProgress" : nil
             )
         } else {
             timeEstimator.resetCurrentPrediction()
@@ -416,11 +433,13 @@ final class BatteryMonitor: BatteryMonitoring {
         case .charging:
             return estimator.add(date: context.date, percentage: context.percentage,
                                  charging: true, target: context.chargeTarget,
-                                 connectedToPower: true, systemMinutes: context.systemEstimateMinutes)
+                                 connectedToPower: true, systemMinutes: context.systemEstimateMinutes,
+                                 lowPowerMode: context.lowPowerMode, maximumCapacity: context.maximumCapacity)
         case .discharging:
             return estimator.add(date: context.date, percentage: context.percentage,
                                  charging: false, target: 0, connectedToPower: false,
-                                 systemMinutes: context.systemEstimateMinutes)
+                                 systemMinutes: context.systemEstimateMinutes,
+                                 lowPowerMode: context.lowPowerMode, maximumCapacity: context.maximumCapacity)
         case .mixedPower, .unavailable, .none:
             return estimator.add(date: context.date, percentage: context.percentage,
                                  charging: false, target: nil, connectedToPower: true)

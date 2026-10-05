@@ -15,6 +15,8 @@ struct BatteryTimeEstimator {
         var reservePercent: Double?
         var usedSystemEstimate = false
         var chargingThermalThrottled = false
+        var chargingRateAnomaly = false
+        var chargingRateAnomalyReason: String?
         var missingChargeBandStartPercent: Double?
         var completedBandObservationCount = 0
         var recentCorrectionFactor: Double?
@@ -48,6 +50,8 @@ struct BatteryTimeEstimator {
         let charging: Bool
         let target: Double?
         let connectedToPower: Bool
+        let lowPowerMode: Bool?
+        let maximumCapacity: Int?
         let segment: Int
         enum BoundaryReason: String, Codable { case sleepWake, restore, gap, powerTransition, target, capacityJump }
         let boundaryReason: BoundaryReason?
@@ -55,12 +59,15 @@ struct BatteryTimeEstimator {
 
         init(date: Date, percentage: Double, charging: Bool, target: Double?,
              connectedToPower: Bool? = nil, segment: Int = 0,
-             source: Source = .iops, boundaryReason: BoundaryReason? = nil) {
+             source: Source = .iops, boundaryReason: BoundaryReason? = nil,
+             lowPowerMode: Bool? = nil, maximumCapacity: Int? = nil) {
             self.date = date
             self.percentage = percentage
             self.charging = charging
             self.target = target
             self.connectedToPower = connectedToPower ?? charging
+            self.lowPowerMode = lowPowerMode
+            self.maximumCapacity = maximumCapacity
             self.segment = segment
             self.source = source
             self.boundaryReason = boundaryReason
@@ -75,6 +82,8 @@ struct BatteryTimeEstimator {
             percentage = try values.decode(Double.self, forKey: .percentage)
             charging = try values.decode(Bool.self, forKey: .charging)
             connectedToPower = try values.decodeIfPresent(Bool.self, forKey: .connectedToPower) ?? charging
+            lowPowerMode = try values.decodeIfPresent(Bool.self, forKey: .lowPowerMode)
+            maximumCapacity = try values.decodeIfPresent(Int.self, forKey: .maximumCapacity)
             segment = try values.decodeIfPresent(Int.self, forKey: .segment) ?? 0
             source = try values.decodeIfPresent(Source.self, forKey: .source) ?? .legacy
             boundaryReason = try values.decodeIfPresent(BoundaryReason.self, forKey: .boundaryReason)
@@ -84,7 +93,7 @@ struct BatteryTimeEstimator {
         }
 
         private enum CodingKeys: String, CodingKey {
-            case date, percentage, charging, target, connectedToPower, segment, source, boundaryReason
+            case date, percentage, charging, target, connectedToPower, lowPowerMode, maximumCapacity, segment, source, boundaryReason
         }
 
         var mode: Mode {
@@ -204,7 +213,8 @@ struct BatteryTimeEstimator {
     /// Records idle power transitions too. No estimate is shown while plugged
     /// in but not charging. Unknown charge limits remain nil.
     mutating func add(date: Date, percentage: Double, charging: Bool, target: Double?,
-                      connectedToPower: Bool? = nil, systemMinutes: Int? = nil) -> Int? {
+                      connectedToPower: Bool? = nil, systemMinutes: Int? = nil,
+                      lowPowerMode: Bool? = nil, maximumCapacity: Int? = nil) -> Int? {
         let connected = connectedToPower ?? charging
         guard percentage.isFinite, (0...100).contains(percentage),
               target == nil || (target!.isFinite && (0...100).contains(target!)) else { return nil }
@@ -230,12 +240,12 @@ struct BatteryTimeEstimator {
                 || (mode == .charging && change < -1)
         )
         let boundary = nextSampleStartsSegment || last.map {
-            $0.mode != mode || $0.target != normalizedTarget || gap > Self.maximumGap
+            $0.mode != mode || $0.target != normalizedTarget || $0.lowPowerMode != lowPowerMode || gap > Self.maximumGap
         } == true || implausible
         let boundaryReason: Sample.BoundaryReason? = pendingBoundaryReason
             ?? (gap > Self.maximumGap ? .gap : nil)
             ?? (implausible ? .capacityJump : nil)
-            ?? (last.map { $0.mode != mode } == true ? .powerTransition : nil)
+            ?? (last.map { $0.mode != mode || $0.lowPowerMode != lowPowerMode } == true ? .powerTransition : nil)
             ?? (last.map { $0.target != normalizedTarget } == true ? .target : nil)
         if boundary {
             dischargeStateMachine.reset()
@@ -255,7 +265,8 @@ struct BatteryTimeEstimator {
         var thermalThrottled = false
         let sample = Sample(date: date, percentage: percentage, charging: charging,
                             target: normalizedTarget, connectedToPower: connected, segment: segment,
-                            source: .iops, boundaryReason: boundaryReason)
+                            source: .iops, boundaryReason: boundaryReason,
+                            lowPowerMode: lowPowerMode, maximumCapacity: maximumCapacity)
         if mode == .charging, let last, percentage < 80,
            BatterySampleContinuity.canContinue(last, sample), change > 0 {
             let candidate = gap / 60 / change
@@ -266,10 +277,13 @@ struct BatteryTimeEstimator {
         }
         // Compatibility diagnostic: a rate slowdown is not confirmed thermal throttling.
         diagnostics.chargingThermalThrottled = thermalThrottled
+        diagnostics.chargingRateAnomaly = thermalThrottled
+        diagnostics.chargingRateAnomalyReason = thermalThrottled ? "rateDrop" : nil
         let recorded = Sample(date: sample.date, percentage: sample.percentage,
             charging: sample.charging, target: sample.target, connectedToPower: sample.connectedToPower,
             segment: sample.segment, source: .iops,
-            boundaryReason: sample.boundaryReason)
+            boundaryReason: sample.boundaryReason, lowPowerMode: sample.lowPowerMode,
+            maximumCapacity: sample.maximumCapacity)
         if shouldRecord { samples.append(recorded) }
         samples.removeAll { date.timeIntervalSince($0.date) > Self.persistenceHorizon }
         if samples.count > Self.maximumPersistedSamples {

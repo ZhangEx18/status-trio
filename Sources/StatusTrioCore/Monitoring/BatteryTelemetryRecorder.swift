@@ -42,10 +42,16 @@ final class BatteryTelemetryRecorder: @unchecked Sendable {
         let estimatorReservePercent: Double?
         let estimatorUsedSystemEstimate: Bool?
         let estimatorChargingThermalThrottled: Bool?
+        let chargingRateAnomaly: Bool?
+        let chargingRateAnomalyReason: String?
         let estimatorPredictionMethod: String?
         let estimatorRawMinutes: Double?
         let estimatorActualSource: String?
         let estimatorBoundaryReason: String?
+        let lowPowerMode: Bool?
+        let maximumCapacity: Int?
+        let chargingPauseState: Bool?
+        let chargingPauseReason: String?
         let estimatorCompletedBandObservationCount: Int
         let estimatorRecentCorrectionFactor: Double?
         let estimatorNextTwoPercentMinutes: Double?
@@ -99,8 +105,11 @@ final class BatteryTelemetryRecorder: @unchecked Sendable {
                 selectedEstimatorSource: String? = nil,
                 displayedMinutes: Int? = nil,
                 estimatorTargetPercent: Double? = nil,
-                diagnostics: BatteryTimeEstimator.Diagnostics = .init(mode: nil),
-                boundaryReason: String? = nil) {
+                 diagnostics: BatteryTimeEstimator.Diagnostics = .init(mode: nil),
+                 boundaryReason: String? = nil,
+                 lowPowerMode: Bool? = nil,
+                 chargingPauseState: Bool? = nil,
+                 chargingPauseReason: String? = nil) {
         guard reading.isPresent, reading.maxCapacity > 0 else { return }
         queue.async { [self] in
             let state = BatteryPowerState(isPresent: true,
@@ -160,11 +169,17 @@ final class BatteryTelemetryRecorder: @unchecked Sendable {
                 estimatorReservePercent: diagnostics.reservePercent,
                 estimatorUsedSystemEstimate: diagnostics.usedSystemEstimate,
                 estimatorChargingThermalThrottled: diagnostics.chargingThermalThrottled,
+                chargingRateAnomaly: diagnostics.chargingRateAnomaly,
+                chargingRateAnomalyReason: diagnostics.chargingRateAnomalyReason,
                 estimatorPredictionMethod: diagnostics.predictionMethod,
                 estimatorRawMinutes: diagnostics.rawETA ?? displayedMinutes.map(Double.init),
                 estimatorActualSource: diagnostics.actualSource
                     ?? (displayedMinutesSource == "system" ? "system" : "none"),
                 estimatorBoundaryReason: boundaryReason,
+                lowPowerMode: lowPowerMode,
+                maximumCapacity: reading.maxCapacity,
+                chargingPauseState: chargingPauseState,
+                chargingPauseReason: chargingPauseReason,
                 estimatorCompletedBandObservationCount: diagnostics.completedBandObservationCount,
                 estimatorRecentCorrectionFactor: diagnostics.recentCorrectionFactor,
                 estimatorNextTwoPercentMinutes: diagnostics.nextTwoPercentMinutes,
