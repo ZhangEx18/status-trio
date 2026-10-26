@@ -4,6 +4,58 @@ import XCTest
 
 @MainActor
 final class BatteryMonitorTests: XCTestCase {
+    func testConfiguredCeilingCountsAsFullOnlyOnPower() async {
+        for connected in [false, true] {
+            let monitor = BatteryMonitor(reader: FakeBatteryReader(result: BatteryReading(
+                currentCapacity: 95, maxCapacity: 100, isCharging: false,
+                chargeLimit: 95, isConnectedToPower: connected, isPresent: true)),
+                lowPowerModeProvider: { false })
+            monitor.refresh()
+            var iterator = monitor.updates.makeAsyncIterator()
+            let result = await iterator.next()
+            XCTAssertEqual(result?.isCharged, connected)
+            XCTAssertEqual(result?.percentage, 95)
+            XCTAssertEqual(result?.chargeLimit, 95)
+            XCTAssertNil(result?.timeToFullChargeMinutes)
+            monitor.stop()
+        }
+    }
+
+    func testRemainingTimeIsPublishedOnlyWhileDischarging() async {
+        for connected in [false, true] {
+            let reader = FakeBatteryReader(result: BatteryReading(
+                currentCapacity: 70, maxCapacity: 100, isCharging: false,
+                remainingMinutes: 123, isConnectedToPower: connected, isPresent: true))
+            let monitor = BatteryMonitor(reader: reader, lowPowerModeProvider: { false })
+            monitor.refresh()
+            var iterator = monitor.updates.makeAsyncIterator()
+            let battery = await iterator.next()
+            XCTAssertEqual(battery?.remainingMinutes, connected ? nil : 123)
+            monitor.stop()
+        }
+    }
+
+    func testParserReadsMinutesToEmptyWithoutCapacityArithmetic() {
+        let reading = IOPSBatteryReader.parse([
+            kIOPSTypeKey: kIOPSInternalBatteryType,
+            kIOPSCurrentCapacityKey: 70, kIOPSMaxCapacityKey: 100,
+            kIOPSTimeToEmptyKey: 123
+        ])
+        XCTAssertEqual(reading?.remainingMinutes, 123)
+    }
+
+    func testParserRejectsBooleanFractionalAndInfiniteTimeEstimates() {
+        for invalid: Any in [true, 1.5, Double.infinity, Double.nan, -1, 0] {
+            let description: [String: Any] = [
+                kIOPSTypeKey: kIOPSInternalBatteryType,
+                kIOPSCurrentCapacityKey: 68, kIOPSMaxCapacityKey: 100,
+                kIOPSIsChargingKey: true,
+                kIOPSTimeToFullChargeKey: invalid
+            ]
+            XCTAssertNil(IOPSBatteryReader.parse(description)?.timeToFullChargeMinutes)
+        }
+    }
+
     func testParserConvertsValidInternalBatteryDescription() {
         let description: [String: Any] = [
             kIOPSTypeKey: kIOPSInternalBatteryType,

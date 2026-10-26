@@ -96,6 +96,10 @@ enum StatusPresentation {
         if !battery.isPresent {
             return localization.string(.batteryStateNotPresent)
         }
+        if battery.isConnectedToPower, !battery.isCharging,
+           let limit = battery.chargeLimit, limit < 100, battery.percentage >= limit {
+            return localization.format(.batteryStateChargedToLimit, limit)
+        }
         if battery.isCharged {
             return localization.string(.batteryStateCharged)
         }
@@ -284,13 +288,14 @@ enum StatusPresentation {
 private enum PopoverPanel {
     case summary
     case battery
-    case wifi(showDetails: Bool)
+    case wifi
     case ethernet
 }
 
 struct StatusPopoverView: View {
     @ObservedObject var store: SystemStatusStore
     @ObservedObject var settings: SettingsStore
+    @ObservedObject var perAppAudioController: PerAppAudioController
     let scrollTargets: PopoverScrollTargets
     @EnvironmentObject private var localization: Localization
     let requestWiFiNameAccess: () -> Void
@@ -321,7 +326,7 @@ struct StatusPopoverView: View {
                     },
                     onOpenBatterySettings: openBatterySettings
                 )
-            case .wifi(let showDetails):
+            case .wifi:
                 WiFiNetworkListView(
                     controller: store.wifiNetworks,
                     wifi: store.popupSnapshot.wifi,
@@ -331,8 +336,7 @@ struct StatusPopoverView: View {
                     },
                     onRequestNameAccess: requestWiFiNameAccess,
                     onOpenWiFiSettings: openWiFiSettings,
-                    onOpenLocationSettings: openLocationSettings,
-                    showsDetailsInitially: showDetails
+                    onOpenLocationSettings: openLocationSettings
                 )
             case .ethernet:
                 EthernetLinkView(
@@ -376,7 +380,8 @@ struct StatusPopoverView: View {
             BatteryStatusView(
                 battery: store.popupSnapshot.battery,
                 onOpenBatteryDetails: { panel = .battery },
-                onOpenBatterySettings: openBatterySettings
+                onOpenBatterySettings: openBatterySettings,
+                onToggleLowPowerMode: { store.toggleLowPowerMode() }
             )
         case .network:
             NetworkStatusView(
@@ -385,9 +390,9 @@ struct StatusPopoverView: View {
                 isConstrained: store.isNetworkConstrained,
                 wifi: store.popupSnapshot.wifi,
                 isResolvingName: store.isResolvingWiFiName,
-                onOpenWiFiDetails: { showDetails in
+                onOpenWiFiDetails: {
                     store.activateWiFiPanel()
-                    panel = .wifi(showDetails: showDetails)
+                    panel = .wifi
                 },
                 onOpenWiredDetails: {
                     store.activatePrimaryLinkPanel()
@@ -396,7 +401,8 @@ struct StatusPopoverView: View {
                 onRequestNameAccess: requestWiFiNameAccess,
                 onOpenWiFiSettings: openWiFiSettings,
                 onOpenNetworkSettings: openNetworkSettings,
-                onOpenLocationSettings: openLocationSettings
+                onOpenLocationSettings: openLocationSettings,
+                onToggleWiFiPower: { store.toggleWiFiPower() }
             )
         case .vpn:
             VPNStatusView(vpn: store.vpnStatus)
@@ -407,7 +413,8 @@ struct StatusPopoverView: View {
                 listOptions: settings.bluetoothDeviceListOptions,
                 onRequestAuthorization: requestBluetoothAuthorization,
                 onOpenBluetoothSettings: openBluetoothSettings,
-                onOpenBluetoothPermissionSettings: openBluetoothPermissionSettings
+                onOpenBluetoothPermissionSettings: openBluetoothPermissionSettings,
+                onToggleBluetooth: { store.toggleBluetoothEnabled() }
             )
         case .volume:
             VolumeControlsView(
@@ -418,7 +425,8 @@ struct StatusPopoverView: View {
                 onVolumeChange: { store.setVolume($0) },
                 onToggleMute: { store.toggleMute() },
                 onSelectOutputDevice: { store.selectOutputDevice($0) },
-                onOpenSoundSettings: openSoundSettings
+                onOpenSoundSettings: openSoundSettings,
+                onEditingChanged: { store.setVolumeEditing($0) }
             )
         case .audioInput:
             AudioInputControlsView(
@@ -426,6 +434,14 @@ struct StatusPopoverView: View {
                 onSelect: { store.selectInputDevice($0) },
                 onScalarChange: { store.setInputScalar($0) },
                 onToggleMute: { store.toggleInputMute() },
+                onOpenSoundSettings: openSoundSettings
+            )
+        case .appAudio:
+            UnifiedAudioPanelView(
+                store: store,
+                settings: settings,
+                appAudioController: perAppAudioController,
+                scrollTargets: scrollTargets,
                 onOpenSoundSettings: openSoundSettings
             )
         }

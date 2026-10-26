@@ -373,3 +373,17 @@
 "settings.bluetooth.permissionRequired" = "Требуется разрешение Bluetooth";
 "settings.bluetooth.permissionNotDeterminedDescription" = "Status Trio нужен доступ к Bluetooth, чтобы показывать ваши устройства. Нажмите кнопку ниже, чтобы разрешить.";
 "settings.bluetooth.permissionDeniedDescription" = "Доступ к Bluetooth запрещён. Включите его в системных настройках, чтобы использовать эту функцию.";
+"settings.popup.order.appAudio" = "Аудио приложений";
+"audioApp.noApps" = "Сейчас ни одно приложение не воспроизводит звук.";
+"audioApp.unavailable" = "Управление звуком приложений недоступно на этом Mac.";
+"audioApp.permission" = "Разрешите запись экрана и системного звука, чтобы управлять звуком приложений.";
+"audioApp.openPermissionSettings" = "Открыть настройки разрешений";
+
+"audio.routing.title" = "Audio routing";
+"audio.routing.single" = "Single device";
+"audio.routing.multiple" = "Multiple devices";
+"audio.routing.system" = "System audio";
+"audio.routing.followSystem" = "Follow macOS default device";
+"audio.routing.systemUnavailable" = "Unavailable in multi-device mode";
+
+"battery.state.charged_to_limit" = "Заряжено до предела %d%%";

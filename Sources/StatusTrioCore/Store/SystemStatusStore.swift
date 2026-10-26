@@ -2,6 +2,10 @@ import AppKit
 import AudioToolbox
 import Combine
 import Foundation
+import CoreWLAN
+import OSLog
+
+private let statusStoreLogger = Logger(subsystem: "com.lingsmbp.StatusTrio", category: "status-store")
 
 @MainActor
 final class SystemStatusStore: ObservableObject {
@@ -352,6 +356,20 @@ final class SystemStatusStore: ObservableObject {
         volumeController != nil && liveVolume.scalar != nil
     }
 
+    private var isEditingVolume = false
+    private var volumeChangedDuringEditing = false
+
+    func setVolumeEditing(_ editing: Bool) {
+        guard editing != isEditingVolume else { return }
+        isEditingVolume = editing
+        if editing {
+            volumeChangedDuringEditing = false
+        } else if volumeChangedDuringEditing {
+            volumeChangedDuringEditing = false
+            if !hasStopped { volumeFeedback?.playVolumeChangeFeedback() }
+        }
+    }
+
     func setVolume(_ scalar: Double) {
         guard !hasStopped,
               volumeController != nil,
@@ -368,7 +386,8 @@ final class SystemStatusStore: ObservableObject {
         // from here. Clamping makes a scroll past either end ask for the same
         // scalar again, and that repeat must stay silent.
         if previousScalar != liveVolume.scalar {
-            volumeFeedback?.playVolumeChangeFeedback()
+            if isEditingVolume { volumeChangedDuringEditing = true }
+            else { volumeFeedback?.playVolumeChangeFeedback() }
         }
     }
 
@@ -392,6 +411,30 @@ final class SystemStatusStore: ObservableObject {
     func requestWiFiNameAccess() -> WiFiNameAccessRequestResult {
         guard !hasStopped else { return .notNeeded }
         return wifiMonitor.requestNameAccess()
+    }
+
+    func toggleWiFiPower() {
+        guard !hasStopped, let interface = CWWiFiClient.shared().interface() else { return }
+        do {
+            try interface.setPower(!interface.powerOn())
+            wifiMonitor.refresh()
+        } catch {
+            statusStoreLogger.error("Wi-Fi toggle failed: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    func toggleLowPowerMode() {
+        guard !hasStopped else { return }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
+        process.arguments = ["-a", "lowpowermode", ProcessInfo.processInfo.isLowPowerModeEnabled ? "0" : "1"]
+        do {
+            try process.run()
+            process.waitUntilExit()
+            batteryMonitor.refresh()
+        } catch {
+            statusStoreLogger.error("Low Power Mode toggle failed: \(String(describing: error), privacy: .public)")
+        }
     }
 
     func requestBluetoothAuthorization() {
@@ -425,6 +468,10 @@ final class SystemStatusStore: ObservableObject {
         } else {
             bluetoothDevices.deactivate()
         }
+    }
+
+    func toggleBluetoothEnabled() {
+        setBluetoothEnabled(!isBluetoothEnabled)
     }
 
     // The popover's Bluetooth surface claim is spelled once, next to the type
@@ -597,7 +644,7 @@ final class SystemStatusStore: ObservableObject {
     func bindInputSettings(_ settings: SettingsStore) {
         guard !hasStopped else { return }
         inputSettingsCancellable = settings.$enabledPopupSections
-            .map { $0.contains(.audioInput) }
+            .map { $0.contains(.audioInput) || $0.contains(.appAudio) }
             .removeDuplicates()
             .sink { [weak self] enabled in
                 self?.setInputEnabled(enabled)
@@ -607,6 +654,16 @@ final class SystemStatusStore: ObservableObject {
     func selectInputDevice(_ id: AudioDeviceID) {
         guard !hasStopped else { return }
         inputMonitor?.select(id)
+    }
+
+    func setInputDeviceScalar(_ value: Double, on id: AudioDeviceID) {
+        guard !hasStopped else { return }
+        inputMonitor?.setDeviceScalar(value, on: id)
+    }
+
+    func setInputDeviceMuted(_ value: Bool, on id: AudioDeviceID) {
+        guard !hasStopped else { return }
+        inputMonitor?.setDeviceMuted(value, on: id)
     }
 
     func setInputScalar(_ value: Double) {

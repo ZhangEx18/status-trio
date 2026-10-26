@@ -91,3 +91,7 @@ The accessory battery notifications the levels refresh on are `notify(3)` keys
 public half of the mechanism; the key names belong to `powerd`, and a key that goes
 away only means those notifications stop arriving, which leaves the safety-net poll
 as the only trigger, exactly as before.
+
+## Per-App audio processing
+
+The optional App Audio panel uses macOS Screen & System Audio Recording permission and a private Core Audio process tap. Status Trio does not use a private TCC API, does not send captured audio over the network, and does not store captured samples. A device or audio format that cannot be represented as Float32 PCM is reported as unavailable rather than processed with an unsafe conversion. Multi-device routing, EQ and AutoEQ are staged features; the initial implementation controls one App on the current default output.

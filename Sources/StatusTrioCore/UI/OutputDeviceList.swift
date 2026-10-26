@@ -2,7 +2,6 @@ import SwiftUI
 
 struct OutputDeviceList: View {
     @EnvironmentObject private var localization: Localization
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var settings: SettingsStore
     let devices: [AudioOutputDevice]
     let onSelect: (AudioOutputDevice) -> Void
@@ -29,9 +28,7 @@ struct OutputDeviceList: View {
 
                 if model.canToggleExpansion {
                     Button {
-                        withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) {
-                            isExpanded.toggle()
-                        }
+                        isExpanded.toggle()
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "chevron.down")

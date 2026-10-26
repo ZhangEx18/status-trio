@@ -373,3 +373,17 @@
 "settings.bluetooth.permissionRequired" = "Autorizzazione Bluetooth richiesta";
 "settings.bluetooth.permissionNotDeterminedDescription" = "Status Trio necessita dell'accesso Bluetooth per mostrare i tuoi dispositivi. Clicca il pulsante qui sotto per concederlo.";
 "settings.bluetooth.permissionDeniedDescription" = "L'accesso Bluetooth è stato negato. Abilitalo in Impostazioni di Sistema per usare questa funzione.";
+"settings.popup.order.appAudio" = "Audio delle app";
+"audioApp.noApps" = "Nessuna app sta riproducendo audio.";
+"audioApp.unavailable" = "Il controllo audio per app non è disponibile su questo Mac.";
+"audioApp.permission" = "Consenti la registrazione dello schermo e dell’audio di sistema per controllare l’audio delle app.";
+"audioApp.openPermissionSettings" = "Apri impostazioni autorizzazioni";
+
+"audio.routing.title" = "Audio routing";
+"audio.routing.single" = "Single device";
+"audio.routing.multiple" = "Multiple devices";
+"audio.routing.system" = "System audio";
+"audio.routing.followSystem" = "Follow macOS default device";
+"audio.routing.systemUnavailable" = "Unavailable in multi-device mode";
+
+"battery.state.charged_to_limit" = "Carica fino al limite del %d%%";

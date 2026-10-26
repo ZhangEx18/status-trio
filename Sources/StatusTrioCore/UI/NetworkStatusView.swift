@@ -15,12 +15,13 @@ struct NetworkStatusView: View {
     let isConstrained: Bool
     let wifi: WiFiStatus
     let isResolvingName: Bool
-    let onOpenWiFiDetails: (Bool) -> Void
+    let onOpenWiFiDetails: () -> Void
     let onOpenWiredDetails: () -> Void
     let onRequestNameAccess: () -> Void
     let onOpenWiFiSettings: () -> Void
     let onOpenNetworkSettings: () -> Void
     let onOpenLocationSettings: () -> Void
+    var onToggleWiFiPower: () -> Void = {}
 
     var body: some View {
         if connection == .ethernet {
@@ -39,6 +40,7 @@ struct NetworkStatusView: View {
                 onRequestNameAccess: onRequestNameAccess,
                 onOpenWiFiSettings: onOpenWiFiSettings,
                 onOpenLocationSettings: onOpenLocationSettings
+                ,onToggleWiFiPower: onToggleWiFiPower
             )
         }
     }

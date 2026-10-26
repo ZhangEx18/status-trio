@@ -373,3 +373,17 @@
 "settings.bluetooth.permissionRequired" = "블루투스 권한 필요";
 "settings.bluetooth.permissionNotDeterminedDescription" = "Status Trio가 기기를 표시하려면 블루투스 접근 권한이 필요합니다. 아래 버튼을 클릭하여 허용하세요.";
 "settings.bluetooth.permissionDeniedDescription" = "블루투스 접근이 거부되었습니다. 이 기능을 사용하려면 시스템 설정에서 켜세요.";
+"settings.popup.order.appAudio" = "앱 오디오";
+"audioApp.noApps" = "현재 오디오를 재생 중인 앱이 없습니다.";
+"audioApp.unavailable" = "이 Mac에서는 앱별 오디오 제어를 사용할 수 없습니다.";
+"audioApp.permission" = "앱 오디오를 제어하려면 화면 및 시스템 오디오 녹음을 허용하세요.";
+"audioApp.openPermissionSettings" = "권한 설정 열기";
+
+"audio.routing.title" = "Audio routing";
+"audio.routing.single" = "Single device";
+"audio.routing.multiple" = "Multiple devices";
+"audio.routing.system" = "System audio";
+"audio.routing.followSystem" = "Follow macOS default device";
+"audio.routing.systemUnavailable" = "Unavailable in multi-device mode";
+
+"battery.state.charged_to_limit" = "충전 한도 %d%%에 도달";

@@ -6,17 +6,23 @@ struct WiFiStatusView: View {
     let wifi: WiFiStatus
     var connection: NetworkConnection = .wifi
     var isResolvingName: Bool = false
-    let onOpenDetails: (Bool) -> Void
+    let onOpenDetails: () -> Void
     let onRequestNameAccess: () -> Void
     let onOpenWiFiSettings: () -> Void
     let onOpenLocationSettings: () -> Void
+    var onToggleWiFiPower: () -> Void = {}
 
     var body: some View {
         HStack(spacing: 10) {
+            Button(action: onToggleWiFiPower) {
+                WiFiStatusIcon(wifi: wifi)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Toggle Wi-Fi")
             Button {
                 switch StatusMappings.wifiSummaryAction(for: wifi) {
                 case .openDetails:
-                    onOpenDetails(NSEvent.modifierFlags.contains(.option))
+                    onOpenDetails()
                 case .requestNameAccess:
                     onRequestNameAccess()
                 case .openLocationSettings:
@@ -24,7 +30,6 @@ struct WiFiStatusView: View {
                 }
             } label: {
                 HStack(spacing: 10) {
-                    WiFiStatusIcon(wifi: wifi)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(summarySSID ?? localization.string(.wifiTitle))
                             .font(.headline)

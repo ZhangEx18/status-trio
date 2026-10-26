@@ -1,3 +1,5 @@
 "NSLocationUsageDescription" = "Used to show the current Wi-Fi network name in the popover and, when you open Wi-Fi details, to read network names, scan results, and connection information.";
 "NSLocationWhenInUseUsageDescription" = "Used to show the current Wi-Fi network name in the popover and, when you open Wi-Fi details, to read network names, scan results, and connection information.";
-"NSBluetoothAlwaysUsageDescription" = "Used only when you open Bluetooth details to show paired-device connection status.";
+"NSBluetoothAlwaysUsageDescription" = "Wird nur geöffnet, um den Verbindungsstatus gekoppelter Geräte anzuzeigen.";
+"NSAudioCaptureUsageDescription" = "Wird verwendet, um die Lautstärke einzelner Apps zu steuern, wenn App-Audio aktiviert ist.";
+"NSMicrophoneUsageDescription" = "Wird nur für die Audioverarbeitung bei aktivierter App-Audiosteuerung verwendet.";

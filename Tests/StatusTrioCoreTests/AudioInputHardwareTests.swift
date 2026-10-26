@@ -715,6 +715,8 @@ private final class FakeAudioInputPropertyClient: AudioInputPropertyClient, @unc
   func canBeDefaultInput(_ id: AudioDeviceID) -> Bool? { devicesByID[id]?.canBeDefault }
   func inputChannels(_ id: AudioDeviceID) -> Int { devicesByID[id]?.channels ?? 0 }
   func name(_ id: AudioDeviceID) -> String? { devicesByID[id]?.name }
+  func iconURL(_ id: AudioDeviceID) -> URL? { nil }
+  func transport(_ id: AudioDeviceID) -> UInt32? { nil }
   func uid(_ id: AudioDeviceID) -> String? { devicesByID[id]?.uid }
   func volume(_ id: AudioDeviceID) -> AudioInputVolumeReadback { devicesByID[id]?.volume ?? .unsupported }
   func mute(_ id: AudioDeviceID) -> AudioInputMuteReadback { devicesByID[id]?.mute ?? .unsupported }

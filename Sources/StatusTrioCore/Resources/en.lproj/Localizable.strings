@@ -322,7 +322,7 @@
 "battery.details.current" = "Battery current";
 "battery.details.sampled" = "Battery sampled at";
 "battery.details.adapter" = "Adapter rating";
-"battery.details.remaining" = "Time remaining";
+"battery.details.remaining" = "Estimated time remaining";
 "battery.details.cycles" = "Cycle count";
 "battery.details.lowPower" = "Low Power Mode";
 "battery.details.on" = "On";
@@ -373,3 +373,17 @@
 "settings.bluetooth.permissionRequired" = "Bluetooth permission required";
 "settings.bluetooth.permissionNotDeterminedDescription" = "Status Trio needs Bluetooth access to show your devices. Click the button below to grant it.";
 "settings.bluetooth.permissionDeniedDescription" = "Bluetooth access was denied. Enable it in System Settings to use this feature.";
+"settings.popup.order.appAudio" = "App Audio";
+"audioApp.noApps" = "No apps are currently playing audio.";
+"audioApp.unavailable" = "Per-App audio control is unavailable on this Mac.";
+"audioApp.permission" = "Allow Screen & System Audio Recording to control App audio.";
+"audioApp.openPermissionSettings" = "Open Permission Settings";
+
+"audio.routing.title" = "Audio routing";
+"audio.routing.single" = "Single device";
+"audio.routing.multiple" = "Multiple devices";
+"audio.routing.system" = "System audio";
+"audio.routing.followSystem" = "Follow macOS default device";
+"audio.routing.systemUnavailable" = "Unavailable in multi-device mode";
+
+"battery.state.charged_to_limit" = "Charged to %d%% limit";

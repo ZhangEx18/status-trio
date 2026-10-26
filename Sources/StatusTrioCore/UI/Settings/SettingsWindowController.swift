@@ -1,6 +1,9 @@
 import AppKit
 import Combine
 import SwiftUI
+import OSLog
+
+private let settingsWindowLogger = Logger(subsystem: "com.lingsmbp.StatusTrio", category: "settings-window")
 
 @MainActor
 final class SettingsWindowController: NSWindowController, NSWindowDelegate {
@@ -17,6 +20,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     /// permission decision (`.notDetermined` → granted/denied), never on launch
     /// or on a no-op refresh of an already-granted app.
     private var lastBluetoothAuthorization: BluetoothAuthorizationStatus = .notDetermined
+    private var isClosingWindow = false
 
     init(
         store: SettingsStore,
@@ -63,6 +67,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     func show() {
         let window = window ?? makeWindow()
         self.window = window
+        isClosingWindow = false
         statusStore.setSettingsVisible(true)
         applyLocalization()
         enterActivationPolicyIfNeeded()
@@ -72,8 +77,13 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
+        guard !isClosingWindow else { return }
+        isClosingWindow = true
+        settingsWindowLogger.info("Settings window will close")
         statusStore.setSettingsVisible(false)
         leaveActivationPolicyIfNeeded()
+        // Release the closed window. A fresh instance on the next presentation
+        // avoids retaining stale AppKit/SwiftUI state across close and reopen.
         window = nil
     }
 

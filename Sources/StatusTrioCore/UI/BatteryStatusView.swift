@@ -7,16 +7,19 @@ struct BatteryStatusView: View {
     let battery: BatteryStatus
     let onOpenBatteryDetails: () -> Void
     let onOpenBatterySettings: () -> Void
+    var onToggleLowPowerMode: () -> Void = {}
 
     var body: some View {
         HStack(spacing: 10) {
+            Button(action: onToggleLowPowerMode) {
+                batteryIcon.frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
+            .disabled(!battery.isPresent)
+            .accessibilityLabel("Toggle Low Power Mode")
+
             Button(action: onOpenBatteryDetails) {
                 HStack(spacing: 10) {
-                    Image(systemName: batterySymbolName)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(batterySymbolColor)
-                        .frame(width: 24, height: 24)
-                        .accessibilityHidden(true)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(StatusPresentation.batteryTitle(battery, localization: localization))
@@ -27,6 +30,16 @@ struct BatteryStatusView: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .truncationMode(.middle)
+                        if !battery.isConnectedToPower, !battery.isCharging,
+                           let minutes = battery.remainingMinutes, minutes > 0 {
+                            Text(localization.format(.commonLabelValue,
+                                localization.string(.batteryDetailsRemaining),
+                                Duration.seconds(Double(minutes) * 60).formatted(
+                                    .units(allowed: [.hours, .minutes], width: .abbreviated)
+                                        .locale(localization.resolvedLanguage.locale))))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     Spacer()
@@ -63,31 +76,43 @@ struct BatteryStatusView: View {
     /// and shows no chevron — the same shape as an unavailable Bluetooth radio.
     var showsDetailAffordance: Bool { battery.isPresent }
 
-    private var batterySymbolName: String {
-        guard battery.isPresent else { return "battery.slash" }
-        if battery.isCharging || battery.isConnectedToPower {
-            return "battery.100.bolt"
-        }
-        switch battery.percentage {
-        case 88...100: return "battery.100"
-        case 63..<88:  return "battery.75"
-        case 38..<63:  return "battery.50"
-        case 13..<38:  return "battery.25"
-        default:       return "battery.0"
+    var showsPowerBolt: Bool { battery.isPresent && (battery.isCharging || battery.isConnectedToPower) }
+
+    @ViewBuilder
+    private var batteryIcon: some View {
+        if !battery.isPresent {
+            Image(systemName: "battery.slash")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(.secondary)
+        } else {
+            ZStack {
+                // Use the native symbol's silhouette, with continuous capacity
+                // inside its body rather than rounding to five SF Symbol levels.
+                Image(systemName: "battery.0percent")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 25, height: 13)
+                HStack(spacing: 0) {
+                    RoundedRectangle(cornerRadius: 1)
+                        .frame(width: 18 * CGFloat(battery.percentage) / 100, height: 7)
+                    Spacer(minLength: 0)
+                }
+                .frame(width: 18, height: 7)
+                .offset(x: -1)
+                if showsPowerBolt {
+                    // Knock out a border around the bolt so it stays legible
+                    // over both the filled and empty portions in either theme.
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .scaleEffect(1.3)
+                        .blendMode(.destinationOut)
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 12, weight: .bold))
+                }
+            }
+            .foregroundStyle(.primary)
+            .compositingGroup()
         }
     }
 
-    private var batterySymbolColor: Color {
-        guard battery.isPresent else { return .secondary }
-        if battery.isCharging || battery.isConnectedToPower {
-            return .green
-        }
-        if battery.isLowPowerMode {
-            return .yellow
-        }
-        if battery.percentage <= 20 {
-            return .red
-        }
-        return .primary
-    }
 }

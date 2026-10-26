@@ -3,7 +3,7 @@ import XCTest
 @testable import StatusTrioCore
 
 final class AudioInputPresentationTests: XCTestCase {
-    func testOrderedPlacesCurrentDeviceFirstAndUsesLocaleAndIDForRemainingRows() {
+    func testOrderedKeepsDevicePositionsStableAcrossSelection() {
         let builtIn = AudioInputDevice(id: AudioDeviceID(12), uid: "built-in", name: "Built-in")
         let usb = AudioInputDevice(id: AudioDeviceID(4), uid: "usb", name: "USB")
         let lowerAlpha = AudioInputDevice(id: AudioDeviceID(8), uid: "lower", name: "alpha")
@@ -16,7 +16,7 @@ final class AudioInputPresentationTests: XCTestCase {
             unknownName: "未知输入设备"
         )
 
-        XCTAssertEqual(rows.map(\.id), [usb.id, upperAlpha.id, lowerAlpha.id, builtIn.id])
+        XCTAssertEqual(rows.map(\.id), [upperAlpha.id, lowerAlpha.id, builtIn.id, usb.id])
     }
 
     func testOrderedUsesUnknownNameAndIDForUnnamedDevices() {

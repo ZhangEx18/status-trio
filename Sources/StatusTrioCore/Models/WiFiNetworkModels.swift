@@ -43,6 +43,7 @@ struct WiFiNetworkCandidate: Equatable, Hashable, Sendable {
     let bssid: String?
     let rssi: Int?
     let channel: Int?
+    let band: WiFiFrequencyBand?
     let security: WiFiSecurityKind
 
     init(
@@ -50,12 +51,14 @@ struct WiFiNetworkCandidate: Equatable, Hashable, Sendable {
         bssid: String?,
         rssi: Int?,
         channel: Int?,
+        band: WiFiFrequencyBand? = nil,
         security: WiFiSecurityKind
     ) {
         identity = WiFiNetworkIdentity(ssid: ssid, security: security)
         self.bssid = bssid
         self.rssi = rssi
         self.channel = channel
+        self.band = band
         self.security = security
     }
 }
@@ -97,6 +100,8 @@ struct WiFiNetwork: Identifiable, Equatable, Sendable {
     }
 
     var rssi: Int? { preferredCandidate?.rssi }
+
+    var band: WiFiFrequencyBand? { preferredCandidate?.band }
 
     static func merge(
         _ candidates: [WiFiNetworkCandidate],
@@ -154,15 +159,7 @@ enum WiFiNetworkPresentation {
         network.isConnected ? .none : .openSettings
     }
 
-    /// The details row names the action it performs, so its caption and its
-    /// accessibility label both flip once the details are open.
-    static func detailsToggleTitleKey(isExpanded: Bool) -> LocalizationKey {
-        isExpanded ? .wifiDetailsHide : .wifiDetailsShow
-    }
 
-    static func detailsToggleSymbol(isExpanded: Bool) -> String {
-        isExpanded ? "chevron.up" : "info.circle"
-    }
 }
 
 struct WiFiConnectionDetails: Equatable, Sendable {

@@ -6,6 +6,12 @@ struct AudioInputDevice: Identifiable, Equatable, Sendable {
   let id: AudioDeviceID
   let uid: String?
   let name: String?
+  var scalar: Double? = nil
+  var canSetVolume: Bool = false
+  var muteState: AudioInputMuteState? = nil
+  var canSetMute: Bool = false
+  var iconURL: URL? = nil
+  var transport: UInt32? = nil
 }
 
 enum AudioInputMuteState: Equatable, Sendable {
