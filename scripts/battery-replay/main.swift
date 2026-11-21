@@ -17,6 +17,9 @@ func jsonValue(_ value: Any) -> Any? {
 var estimator = BatteryTimeEstimator()
 var catalog = BatteryTimeProfileCatalog()
 var lastCaptureKey: String?
+#if CANDIDATE
+var lastPartialProfileSegment: Int?
+#endif
 let input = FileHandle.standardInput
 let output = FileHandle.standardOutput
 let lines = String(decoding: input.readDataToEndOfFile(), as: UTF8.self).split(separator: "\n")
@@ -28,10 +31,7 @@ for line in lines {
     let connected = row["connectedToPower"] as! Bool
     let target = row["target"] as? Double
     let system = row["system"] as? Int
-    // A reason-bearing schema 7 row is a dirty boundary. The baseline commit
-    // predates the reason argument, so this deliberately calls the compatible
-    // no-argument API; the candidate maps the reason internally when available.
-    if row["boundaryReason"] != nil || row["dirty"] as? Bool == true { estimator.markDirtyInterval() }
+    if row["dirty"] as? Bool == true { estimator.markDirtyInterval() }
     let estimate = estimator.add(date: date, percentage: percentage, charging: charging,
                                  target: target, connectedToPower: connected, systemMinutes: system)
     var result: [String: Any] = ["timestamp": date.timeIntervalSince1970,
@@ -57,6 +57,19 @@ for line in lines {
             }
             estimator.updateProfiles(catalog.hasBidirectionalProfiles(now: date) ? catalog : .init())
         }
+        #if CANDIDATE
+        if newest.segment != lastPartialProfileSegment {
+            if catalog.mergePartialProfiles(
+                BatteryTimeProfileBuilder.partialProfiles(from: estimator.persistedSamples),
+                now: date
+            ) {
+                estimator.updateProfiles(
+                    catalog.hasBidirectionalProfiles(now: date) ? catalog : .init()
+                )
+            }
+            lastPartialProfileSegment = newest.segment
+        }
+        #endif
     }
     let data = try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys])
     output.write(data)

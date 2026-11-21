@@ -17,13 +17,21 @@ The existing battery icon monitoring is unchanged.
 
 - **Adapter rating** comes from `IOPSCopyExternalPowerAdapterDetails` and
   `kIOPSPowerAdapterWattsKey`. It is not measured charging power.
-- **Estimated time to charge limit / 5% reserve** uses this Mac's completed
-  five-point battery-percentage bands after both the 95% charge and 5% reserve
-  profiles are complete and within the 60-day retention window. The pair
-  activates together. Profiles are built from IOPS capacity crossings, kept
-  separately for charging and discharging, and stored locally. Uncovered bands
-  fall back to the prior estimator; the system estimate remains the final
-  fallback. The profile does not train from system time estimates or wattage.
+- **Estimated time to charge limit / 5% reserve** learns five-point bands from
+  continuous IOPS capacity crossings, kept separately for charging and
+  discharging and stored locally. A complete 95% charge session and a complete
+  5% reserve discharge session are both required before the learned pair becomes
+  active; each completed profile must also be within the 60-day retention window.
+  Once active, uninterrupted partial sessions refine bands they actually
+  traversed, so ordinary partial discharges can improve daily remaining-time
+  estimates without waiting for a run to 5%. Partial sessions never activate
+  the model by themselves, and newer complete sessions replace their curve.
+  Partial evidence is blended with the complete median using a count-based
+  weight rather than replacing it. The 90-95% charging band is the terminal
+  taper and is trained only by complete charges; partial charges may refine
+  lower charge bands. Uncovered bands fall back to the prior estimator; the
+  system estimate remains the final fallback. The profile does not train from
+  system time estimates or wattage.
 - **Low Power Mode** uses the existing `ProcessInfo`-backed battery status.
 - **Power** is one row whose source follows the power connection, not whether
   the battery is actively charging. On external power it shows **System power

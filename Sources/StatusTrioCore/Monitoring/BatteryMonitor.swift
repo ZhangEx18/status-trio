@@ -140,6 +140,7 @@ final class BatteryMonitor: BatteryMonitoring {
     private var timeEstimator = BatteryTimeEstimator()
     private var legacyTimeEstimator = BatteryTimeEstimator()
     private var lastProfileCaptureKey: String?
+    private var lastPartialProfileSegment: Int?
     private var chargingPauseSince: Date?
     private var chargingPauseState = false
     private let telemetryRecorder: BatteryTelemetryRecorder?
@@ -180,8 +181,12 @@ final class BatteryMonitor: BatteryMonitoring {
         for profile in BatteryTimeProfileBuilder.completeProfiles(from: restored).profiles {
             _ = profileCatalog.addIfNewer(profile, now: now)
         }
+        _ = profileCatalog.mergePartialProfiles(
+            BatteryTimeProfileBuilder.partialProfiles(from: restored), now: now
+        )
         if profileCatalog != storedProfiles { profileStore.save(profileCatalog) }
         self.profileCatalog = profileCatalog
+        self.lastPartialProfileSegment = restored.last?.segment
         let activeProfiles = profileCatalog.hasBidirectionalProfiles(now: now)
             ? profileCatalog : BatteryTimeProfileCatalog()
         self.timeEstimator = BatteryTimeEstimator(profiles: activeProfiles)
@@ -347,6 +352,11 @@ final class BatteryMonitor: BatteryMonitoring {
             if completedChargeProfile || completedDischargeProfile {
                 updateProfilesFromCompletedSamples(at: now)
             }
+            let currentSegment = timeEstimator.persistedSamples.last?.segment
+            if currentSegment != lastPartialProfileSegment {
+                updatePartialProfiles(at: now)
+                lastPartialProfileSegment = currentSegment
+            }
             if previousSampleDate != timeEstimator.persistedSamples.last?.date {
                 persistEstimatorSamples()
             }
@@ -416,6 +426,15 @@ final class BatteryMonitor: BatteryMonitoring {
             changed = profileCatalog.addIfNewer(profile, now: date) || changed
         }
         guard changed else { return }
+        profileStore.save(profileCatalog)
+        let activeProfiles = profileCatalog.hasBidirectionalProfiles(now: date)
+            ? profileCatalog : BatteryTimeProfileCatalog()
+        timeEstimator.updateProfiles(activeProfiles)
+    }
+
+    private func updatePartialProfiles(at date: Date) {
+        let candidates = BatteryTimeProfileBuilder.partialProfiles(from: timeEstimator.persistedSamples)
+        guard profileCatalog.mergePartialProfiles(candidates, now: date) else { return }
         profileStore.save(profileCatalog)
         let activeProfiles = profileCatalog.hasBidirectionalProfiles(now: date)
             ? profileCatalog : BatteryTimeProfileCatalog()

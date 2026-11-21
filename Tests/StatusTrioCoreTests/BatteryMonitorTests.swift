@@ -765,6 +765,63 @@ final class BatteryMonitorTests: XCTestCase {
         XCTAssertFalse(CFRunLoopContainsSource(CFRunLoopGetMain(), harness.source, .defaultMode))
     }
 
+    func testInitMergesPartialChargeAndDischargeProfiles() throws {
+        let suite = "BatteryMonitorTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BatteryMonitorPartialProfiles-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let start = Date(timeIntervalSince1970: 1_000_000)
+        var samples: [BatteryTimeEstimator.Sample] = []
+        func append(_ percentages: [Int], step: TimeInterval, charging: Bool,
+                    target: Double, segment: Int, offset: TimeInterval) {
+            for (index, percentage) in percentages.enumerated() {
+                samples.append(.init(
+                    date: start.addingTimeInterval(offset + Double(index) * step),
+                    percentage: Double(percentage), charging: charging,
+                    target: target, connectedToPower: charging, segment: segment
+                ))
+            }
+        }
+        append(Array(40...95), step: 60, charging: true, target: 95,
+               segment: 1, offset: 0)
+        append(Array(stride(from: 95, through: 5, by: -1)), step: 120,
+               charging: false, target: 0, segment: 2, offset: 10_000)
+        append(Array(20...50), step: 60, charging: true, target: 95,
+               segment: 3, offset: 30_000)
+        append(Array(stride(from: 80, through: 55, by: -1)), step: 120,
+               charging: false, target: 0, segment: 4, offset: 40_000)
+        BatterySampleFileStore(directory: directory, defaults: nil).persist(samples)
+
+        let monitor = BatteryMonitor(
+            reader: FakeBatteryReader(result: makeReading(percentage: 50)),
+            lowPowerModeProvider: { false },
+            nowProvider: { start.addingTimeInterval(60_000) },
+            defaults: defaults,
+            sampleStoreDirectory: directory
+        )
+
+        let modelData = try XCTUnwrap(defaults.data(forKey: BatteryTimeProfileStore.modelKey))
+        let catalog = try JSONDecoder().decode(
+            BatteryTimeProfileStore.Model.self, from: modelData
+        ).catalog
+
+        XCTAssertTrue(catalog.profiles.contains {
+            $0.direction == .charging && !$0.isComplete && $0.sessionEndPercent == 50
+        })
+        XCTAssertTrue(catalog.profiles.contains {
+            $0.direction == .discharging && !$0.isComplete && $0.sessionEndPercent == 55
+        })
+        XCTAssertTrue(catalog.profiles.contains {
+            $0.direction == .charging && $0.isComplete
+        })
+        XCTAssertTrue(catalog.profiles.contains {
+            $0.direction == .discharging && $0.isComplete
+        })
+        monitor.stop()
+    }
+
     private func makeReading(percentage: Int) -> BatteryReading {
         BatteryReading(
             currentCapacity: percentage,

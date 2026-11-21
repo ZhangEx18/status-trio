@@ -32,6 +32,24 @@ struct BatteryTimeProfileBuilder {
         return BatteryTimeProfileCatalog(profiles: [chargeProfile, dischargeProfile].compactMap { $0 })
     }
 
+    static func partialProfiles(from samples: [BatteryTimeEstimator.Sample]) -> [BatteryTimeProfile] {
+        partialChargeProfiles(from: samples) + partialDischargeProfiles(from: samples)
+    }
+
+    static func partialChargeProfiles(
+        from samples: [BatteryTimeEstimator.Sample]
+    ) -> [BatteryTimeProfile] {
+        partialProfiles(from: samples, direction: .charging,
+                        targetPercent: BatteryTimeProfile.profiledChargeTargetPercent)
+    }
+
+    static func partialDischargeProfiles(
+        from samples: [BatteryTimeEstimator.Sample]
+    ) -> [BatteryTimeProfile] {
+        partialProfiles(from: samples, direction: .discharging,
+                        targetPercent: BatteryTimeProfile.profiledDischargeReservePercent)
+    }
+
     private static func completedProfiles(
         from samples: [BatteryTimeEstimator.Sample],
         direction: BatteryTimeProfile.Direction,
@@ -41,6 +59,17 @@ struct BatteryTimeProfileBuilder {
         return sessions.compactMap {
             completedProfile(in: $0, direction: direction, targetPercent: targetPercent)
         }
+    }
+
+    private static func partialProfiles(
+        from samples: [BatteryTimeEstimator.Sample],
+        direction: BatteryTimeProfile.Direction,
+        targetPercent: Int
+    ) -> [BatteryTimeProfile] {
+        sessionSegments(from: samples, direction: direction, targetPercent: targetPercent)
+            .compactMap {
+                partialProfile(in: $0, direction: direction, targetPercent: targetPercent)
+            }
     }
 
     private static func sessionSegments(
@@ -138,6 +167,30 @@ struct BatteryTimeProfileBuilder {
                                   sessionStart: startSample.date, sessionEnd: endpointSample.date,
                                   sessionStartPercent: startSample.percentage,
                                   sessionEndPercent: endpointSample.percentage, bands: profileBands)
+    }
+
+    private static func partialProfile(
+        in session: [BatteryTimeEstimator.Sample],
+        direction: BatteryTimeProfile.Direction,
+        targetPercent: Int
+    ) -> BatteryTimeProfile? {
+        guard let startSample = session.first(where: {
+            isActive($0, direction: direction, targetPercent: targetPercent)
+        }),
+        let endpointSample = session.last,
+        endpointSample.date > startSample.date,
+        !isAtTarget(endpointSample, direction: direction, targetPercent: targetPercent)
+        else { return nil }
+
+        let trainingSamples = Array(session.prefix { $0.date <= endpointSample.date })
+        let profileBands = measuredBands(in: trainingSamples, direction: direction,
+                                         targetPercent: targetPercent, date: endpointSample.date)
+        guard !profileBands.isEmpty else { return nil }
+        return BatteryTimeProfile(direction: direction, targetPercent: targetPercent,
+                                  sessionStart: startSample.date, sessionEnd: endpointSample.date,
+                                  sessionStartPercent: startSample.percentage,
+                                  sessionEndPercent: endpointSample.percentage,
+                                  bands: profileBands)
     }
 
     private static func hasExpectedProgress(

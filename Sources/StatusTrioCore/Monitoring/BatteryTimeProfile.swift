@@ -21,4 +21,16 @@ struct BatteryTimeProfile: Codable, Equatable, Sendable {
     let sessionStartPercent: Double
     let sessionEndPercent: Double
     let bands: [Band]
+
+    var isComplete: Bool {
+        guard !bands.isEmpty else { return false }
+        switch direction {
+        case .charging:
+            return sessionStartPercent < Double(targetPercent)
+                && sessionEndPercent >= Double(targetPercent)
+        case .discharging:
+            return sessionStartPercent > Double(targetPercent)
+                && sessionEndPercent <= Double(targetPercent)
+        }
+    }
 }
