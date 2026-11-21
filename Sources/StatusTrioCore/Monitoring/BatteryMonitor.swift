@@ -127,8 +127,8 @@ final class BatteryMonitor: BatteryMonitoring {
     private let defaults: UserDefaults
     private let notificationCenter: NotificationCenter
     private let workspaceNotificationCenter: NotificationCenter
-    private static let estimatorSamplesKey = "battery.timeEstimator.samples.v1"
     private let profileStore: BatteryTimeProfileStore
+    private let sampleStore: BatterySampleFileStore
     private var profileCatalog = BatteryTimeProfileCatalog()
     private let iopsRunLoopSourceFactory: IOPSRunLoopSourceFactory
     nonisolated(unsafe) private var runLoopSource: CFRunLoopSource?
@@ -154,6 +154,7 @@ final class BatteryMonitor: BatteryMonitoring {
         notificationCenter: NotificationCenter = .default,
         workspaceNotificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
         telemetryRecorder: BatteryTelemetryRecorder? = nil,
+        sampleStoreDirectory: URL? = nil,
         iopsRunLoopSourceFactory: @escaping IOPSRunLoopSourceFactory = { context, callback in
             IOPSNotificationCreateRunLoopSource(callback, context)?.takeRetainedValue()
         }
@@ -167,10 +168,11 @@ final class BatteryMonitor: BatteryMonitoring {
         let profileStore = BatteryTimeProfileStore(defaults: defaults)
         self.profileStore = profileStore
         let now = nowProvider()
-        let storedSamplesData = defaults.data(forKey: Self.estimatorSamplesKey)
-        let restored = storedSamplesData.flatMap {
-            try? JSONDecoder().decode([BatteryTimeEstimator.Sample].self, from: $0)
-        } ?? []
+        let sampleStore = sampleStoreDirectory.map {
+            BatterySampleFileStore(directory: $0, defaults: defaults)
+        } ?? BatterySampleFileStore(defaults: defaults)
+        self.sampleStore = sampleStore
+        let restored = sampleStore.load()
         var profileCatalog = (try? profileStore.loadOrRebuild(samples: restored, now: now))
             ?? BatteryTimeProfileCatalog()
         let storedProfiles = profileCatalog
@@ -470,8 +472,7 @@ final class BatteryMonitor: BatteryMonitoring {
     }
 
     private func persistEstimatorSamples() {
-        guard let encodedSamples = try? JSONEncoder().encode(timeEstimator.persistedSamples) else { return }
-        defaults.set(encodedSamples, forKey: Self.estimatorSamplesKey)
+        sampleStore.persist(timeEstimator.persistedSamples)
     }
 
     private func teardownNotifications() {

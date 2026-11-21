@@ -4,6 +4,13 @@ import XCTest
 
 @MainActor
 final class BatteryMonitorTests: XCTestCase {
+    private lazy var isolateSampleStore: URL = {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BatteryMonitorSamples-\(UUID().uuidString)")
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        return directory
+    }()
+
     func testChargingTelemetryMatchesPublishedFallback() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("BatteryMonitorTelemetryTests-\(UUID().uuidString)")
@@ -13,7 +20,8 @@ final class BatteryMonitorTests: XCTestCase {
             currentCapacity: 80, maxCapacity: 100, isCharging: true,
             timeToFullChargeMinutes: 60, chargeLimit: 95, chargeLimitKnown: true,
             isConnectedToPower: true, isPresent: true)),
-            lowPowerModeProvider: { false }, telemetryRecorder: recorder)
+            lowPowerModeProvider: { false }, telemetryRecorder: recorder,
+            sampleStoreDirectory: isolateSampleStore)
         monitor.refresh()
         var iterator = monitor.updates.makeAsyncIterator()
         let published = await iterator.next()
@@ -31,28 +39,36 @@ final class BatteryMonitorTests: XCTestCase {
         monitor.stop()
     }
 
-    func testRefreshPersistsNewSampleBeforeNextLaunch() {
+    func testRefreshPersistsNewSampleBeforeNextLaunch() throws {
         let suite = "BatteryMonitorTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BatteryMonitorPersistTests-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
         let date = Date(timeIntervalSince1970: 1_000_000)
         let reading = BatteryReading(currentCapacity: 50, maxCapacity: 100,
                                      isCharging: false, isConnectedToPower: false, isPresent: true)
         let first = BatteryMonitor(reader: FakeBatteryReader(result: reading),
                                    lowPowerModeProvider: { false },
-                                   nowProvider: { date }, defaults: defaults)
+                                   nowProvider: { date }, defaults: defaults,
+                                   sampleStoreDirectory: directory)
         first.refresh()
-        let data = defaults.data(forKey: "battery.timeEstimator.samples.v1")
-        XCTAssertNotNil(data)
-        let restored = try? JSONDecoder().decode([BatteryTimeEstimator.Sample].self, from: data!)
-        XCTAssertEqual(restored?.count, 1)
+        let decoder = JSONDecoder()
+        func storedSamples() throws -> [BatteryTimeEstimator.Sample] {
+            let data = try Data(contentsOf: directory
+                .appendingPathComponent("estimator-samples.json"))
+            return try decoder.decode([BatteryTimeEstimator.Sample].self, from: data)
+        }
+        XCTAssertEqual(try storedSamples().count, 1)
+        XCTAssertNil(defaults.data(forKey: "battery.timeEstimator.samples.v1"))
         let second = BatteryMonitor(reader: FakeBatteryReader(result: reading),
                                     lowPowerModeProvider: { false },
-                                    nowProvider: { date.addingTimeInterval(60) }, defaults: defaults)
+                                    nowProvider: { date.addingTimeInterval(60) },
+                                    defaults: defaults,
+                                    sampleStoreDirectory: directory)
         second.refresh()
-        let updated = defaults.data(forKey: "battery.timeEstimator.samples.v1")!
-        XCTAssertEqual(try? JSONDecoder().decode([BatteryTimeEstimator.Sample].self,
-                                                  from: updated).count, 2)
+        XCTAssertEqual(try storedSamples().count, 2)
         first.stop()
         second.stop()
     }
@@ -61,6 +77,9 @@ final class BatteryMonitorTests: XCTestCase {
         let suite = "BatteryMonitorTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BatteryMonitorMigrateTests-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
         let start = Date(timeIntervalSince1970: 1_000_000)
         var samples: [BatteryTimeEstimator.Sample] = []
         for (index, percentage) in (19...95).enumerated() {
@@ -78,9 +97,14 @@ final class BatteryMonitorTests: XCTestCase {
         let monitor = BatteryMonitor(reader: FakeBatteryReader(result: makeReading(percentage: 19)),
                                      lowPowerModeProvider: { false },
                                      nowProvider: { start.addingTimeInterval(30_000) },
-                                     defaults: defaults)
+                                     defaults: defaults,
+                                     sampleStoreDirectory: directory)
 
-        XCTAssertEqual(defaults.data(forKey: "battery.timeEstimator.samples.v1"), legacyData)
+        XCTAssertNil(defaults.data(forKey: "battery.timeEstimator.samples.v1"))
+        let migratedData = try Data(contentsOf: directory
+            .appendingPathComponent("estimator-samples.json"))
+        XCTAssertEqual(try JSONDecoder().decode([BatteryTimeEstimator.Sample].self,
+                                                from: migratedData), samples)
         let profileData = try XCTUnwrap(defaults.data(forKey: BatteryTimeProfileStore.modelKey))
         let catalog = try JSONDecoder().decode(BatteryTimeProfileStore.Model.self, from: profileData).catalog
         XCTAssertEqual(Set(catalog.profiles.map(\.direction)), [.charging, .discharging])
@@ -140,7 +164,8 @@ final class BatteryMonitorTests: XCTestCase {
             lowPowerModeProvider: { false },
             nowProvider: { now },
             defaults: defaults,
-            telemetryRecorder: recorder
+            telemetryRecorder: recorder,
+            sampleStoreDirectory: directory
         )
         monitor.refresh()
         var iterator = monitor.updates.makeAsyncIterator()
@@ -162,29 +187,37 @@ final class BatteryMonitorTests: XCTestCase {
         monitor.stop()
     }
 
-    func testUnknownChargeLimitStaysDistinctFromConfirmedNoLimit() {
+    func testUnknownChargeLimitStaysDistinctFromConfirmedNoLimit() throws {
         let suite = "BatteryMonitorTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BatteryMonitorUnknownLimitTests-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
         let date = Date(timeIntervalSince1970: 1_000_000)
         let reader = FakeBatteryReader(result: BatteryReading(
             currentCapacity: 60, maxCapacity: 100, isCharging: true,
             isConnectedToPower: true, isPresent: true))
         let monitor = BatteryMonitor(reader: reader, lowPowerModeProvider: { false },
-                                     nowProvider: { date }, defaults: defaults)
+                                     nowProvider: { date }, defaults: defaults,
+                                     sampleStoreDirectory: directory)
         monitor.refresh()
-        let key = "battery.timeEstimator.samples.v1"
-        let unknown = try? JSONDecoder().decode([BatteryTimeEstimator.Sample].self,
-                                                from: defaults.data(forKey: key)!)
-        XCTAssertNil(unknown?.last?.target)
+        let decoder = JSONDecoder()
+        func storedSamples() throws -> [BatteryTimeEstimator.Sample] {
+            let data = try Data(contentsOf: directory
+                .appendingPathComponent("estimator-samples.json"))
+            return try decoder.decode([BatteryTimeEstimator.Sample].self, from: data)
+        }
+        let unknown = try storedSamples()
+        XCTAssertNil(unknown.last?.target)
         reader.result?.chargeLimitKnown = true
         let next = BatteryMonitor(reader: reader, lowPowerModeProvider: { false },
-                                  nowProvider: { date.addingTimeInterval(60) }, defaults: defaults)
+                                  nowProvider: { date.addingTimeInterval(60) },
+                                  defaults: defaults, sampleStoreDirectory: directory)
         next.refresh()
-        let confirmed = try? JSONDecoder().decode([BatteryTimeEstimator.Sample].self,
-                                                  from: defaults.data(forKey: key)!)
-        XCTAssertEqual(confirmed?.last?.target, 100)
-        XCTAssertNotEqual(confirmed?.first?.segment, confirmed?.last?.segment)
+        let confirmed = try storedSamples()
+        XCTAssertEqual(confirmed.last?.target, 100)
+        XCTAssertNotEqual(confirmed.first?.segment, confirmed.last?.segment)
         monitor.stop()
         next.stop()
     }
@@ -193,7 +226,8 @@ final class BatteryMonitorTests: XCTestCase {
             let monitor = BatteryMonitor(reader: FakeBatteryReader(result: BatteryReading(
                 currentCapacity: 95, maxCapacity: 100, isCharging: false,
                 chargeLimit: 95, isConnectedToPower: connected, isPresent: true)),
-                lowPowerModeProvider: { false })
+                lowPowerModeProvider: { false },
+                sampleStoreDirectory: isolateSampleStore)
             monitor.refresh()
             var iterator = monitor.updates.makeAsyncIterator()
             let result = await iterator.next()
@@ -210,7 +244,8 @@ final class BatteryMonitorTests: XCTestCase {
             let monitor = BatteryMonitor(reader: FakeBatteryReader(result: BatteryReading(
                 currentCapacity: percentage, maxCapacity: 100, isCharging: false,
                 chargeLimit: 95, isConnectedToPower: true, isPresent: true)),
-                lowPowerModeProvider: { false })
+                lowPowerModeProvider: { false },
+                sampleStoreDirectory: isolateSampleStore)
             monitor.refresh()
             var iterator = monitor.updates.makeAsyncIterator()
             let result = await iterator.next()
@@ -224,7 +259,8 @@ final class BatteryMonitorTests: XCTestCase {
             let reader = FakeBatteryReader(result: BatteryReading(
                 currentCapacity: 70, maxCapacity: 100, isCharging: false,
                 remainingMinutes: 123, isConnectedToPower: connected, isPresent: true))
-            let monitor = BatteryMonitor(reader: reader, lowPowerModeProvider: { false })
+            let monitor = BatteryMonitor(reader: reader, lowPowerModeProvider: { false },
+                                         sampleStoreDirectory: isolateSampleStore)
             monitor.refresh()
             var iterator = monitor.updates.makeAsyncIterator()
             let battery = await iterator.next()
@@ -331,7 +367,8 @@ final class BatteryMonitorTests: XCTestCase {
         ))
         let monitor = BatteryMonitor(
             reader: reader,
-            lowPowerModeProvider: { false }
+            lowPowerModeProvider: { false },
+            sampleStoreDirectory: isolateSampleStore
         )
 
         monitor.refresh()
@@ -373,7 +410,8 @@ final class BatteryMonitorTests: XCTestCase {
         ))
         let monitor = BatteryMonitor(
             reader: reader,
-            lowPowerModeProvider: { true }
+            lowPowerModeProvider: { true },
+            sampleStoreDirectory: isolateSampleStore
         )
 
         monitor.refresh()
@@ -390,7 +428,8 @@ final class BatteryMonitorTests: XCTestCase {
     func testMissingReaderResultUsesFullValue() async {
         let monitor = BatteryMonitor(
             reader: FakeBatteryReader(result: nil),
-            lowPowerModeProvider: { false }
+            lowPowerModeProvider: { false },
+            sampleStoreDirectory: isolateSampleStore
         )
 
         monitor.refresh()
@@ -413,7 +452,8 @@ final class BatteryMonitorTests: XCTestCase {
                 isConnectedToPower: true,
                 isPresent: false
             )),
-            lowPowerModeProvider: { false }
+            lowPowerModeProvider: { false },
+            sampleStoreDirectory: isolateSampleStore
         )
 
         monitor.refresh()
@@ -436,7 +476,8 @@ final class BatteryMonitorTests: XCTestCase {
                 isConnectedToPower: false,
                 isPresent: true
             )),
-            lowPowerModeProvider: { false }
+            lowPowerModeProvider: { false },
+            sampleStoreDirectory: isolateSampleStore
         )
 
         monitor.refresh()
@@ -457,6 +498,7 @@ final class BatteryMonitorTests: XCTestCase {
                 isPresent: true
             )),
             lowPowerModeProvider: { false },
+            sampleStoreDirectory: isolateSampleStore,
             iopsRunLoopSourceFactory: { _, _ in nil }
         )
 
@@ -473,6 +515,7 @@ final class BatteryMonitorTests: XCTestCase {
         let monitor = BatteryMonitor(
             reader: reader,
             lowPowerModeProvider: { false },
+            sampleStoreDirectory: isolateSampleStore,
             iopsRunLoopSourceFactory: { _, _ in nil }
         )
 
@@ -497,6 +540,7 @@ final class BatteryMonitorTests: XCTestCase {
         let monitor = BatteryMonitor(
             reader: reader,
             lowPowerModeProvider: { false },
+            sampleStoreDirectory: isolateSampleStore,
             iopsRunLoopSourceFactory: harness.factory
         )
 
@@ -540,6 +584,7 @@ final class BatteryMonitorTests: XCTestCase {
         let monitor = BatteryMonitor(
             reader: reader,
             lowPowerModeProvider: { false },
+            sampleStoreDirectory: isolateSampleStore,
             iopsRunLoopSourceFactory: harness.factory
         )
 
@@ -564,6 +609,7 @@ final class BatteryMonitorTests: XCTestCase {
         let monitor = BatteryMonitor(
             reader: reader,
             lowPowerModeProvider: { false },
+            sampleStoreDirectory: isolateSampleStore,
             iopsRunLoopSourceFactory: harness.factory
         )
 
@@ -603,6 +649,7 @@ final class BatteryMonitorTests: XCTestCase {
         let monitor = BatteryMonitor(
             reader: reader,
             lowPowerModeProvider: { false },
+            sampleStoreDirectory: isolateSampleStore,
             iopsRunLoopSourceFactory: { _, _ in nil }
         )
 
@@ -637,6 +684,7 @@ final class BatteryMonitorTests: XCTestCase {
         let monitor = BatteryMonitor(
             reader: reader,
             lowPowerModeProvider: { false },
+            sampleStoreDirectory: isolateSampleStore,
             iopsRunLoopSourceFactory: { _, _ in nil }
         )
 
@@ -659,6 +707,7 @@ final class BatteryMonitorTests: XCTestCase {
         let monitor = BatteryMonitor(
             reader: reader,
             lowPowerModeProvider: { false },
+            sampleStoreDirectory: isolateSampleStore,
             iopsRunLoopSourceFactory: harness.factory
         )
 
@@ -676,6 +725,7 @@ final class BatteryMonitorTests: XCTestCase {
         let monitor = BatteryMonitor(
             reader: reader,
             lowPowerModeProvider: { false },
+            sampleStoreDirectory: isolateSampleStore,
             iopsRunLoopSourceFactory: harness.factory
         )
 
@@ -702,6 +752,7 @@ final class BatteryMonitorTests: XCTestCase {
             let monitor = BatteryMonitor(
                 reader: FakeBatteryReader(result: makeReading(percentage: 50)),
                 lowPowerModeProvider: { false },
+                sampleStoreDirectory: isolateSampleStore,
                 iopsRunLoopSourceFactory: harness.factory
             )
             weakMonitor = monitor
