@@ -166,7 +166,7 @@ final class BatteryTelemetryRecorderTests: XCTestCase {
         XCTAssertEqual(observation.estimatorTargetPercent, 95)
     }
 
-    func testRepeatedSamplesAreMarkedAndStalePowerIsExcluded() throws {
+    func testRepeatedSamplesAreDeduplicatedAndStalePowerIsExcluded() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("BatteryTelemetryRecorderTests-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -178,6 +178,7 @@ final class BatteryTelemetryRecorderTests: XCTestCase {
                                      isCharging: true, isConnectedToPower: true, isPresent: true)
         recorder.record(reading, at: now)
         recorder.record(reading, at: now.addingTimeInterval(15))
+        recorder.record(reading, at: now.addingTimeInterval(30))
         recorder.flush()
         let file = try XCTUnwrap(FileManager.default.contentsOfDirectory(
             at: directory, includingPropertiesForKeys: nil).first)
@@ -186,11 +187,53 @@ final class BatteryTelemetryRecorderTests: XCTestCase {
         let observations = try Data(contentsOf: file).split(separator: 0x0A).map {
             try decoder.decode(BatteryTelemetryRecorder.Observation.self, from: Data($0))
         }
-        XCTAssertEqual(observations.count, 2)
+        // Identical readings with identical derived values are written once.
+        XCTAssertEqual(observations.count, 1)
         XCTAssertFalse(observations[0].batteryReadingRepeated)
         XCTAssertEqual(observations[0].powerSampleRepeated, false)
-        XCTAssertTrue(observations[1].batteryReadingRepeated)
-        XCTAssertEqual(observations[1].powerSampleRepeated, true)
+
+        // A changed derived value re-opens the record even with the same reading.
+        recorder.record(reading, at: now.addingTimeInterval(45),
+                        boundaryReason: "gap")
+        recorder.flush()
+        let observationsAfterBoundary = try Data(contentsOf: file).split(separator: 0x0A).map {
+            try decoder.decode(BatteryTelemetryRecorder.Observation.self, from: Data($0))
+        }
+        XCTAssertEqual(observationsAfterBoundary.count, 2)
+        XCTAssertTrue(observationsAfterBoundary[1].batteryReadingRepeated)
+        XCTAssertEqual(observationsAfterBoundary[1].estimatorBoundaryReason, "gap")
+
+        // A source change is a new diagnostic row even when the minutes match.
+        recorder.record(reading, at: now.addingTimeInterval(60),
+                        selectedEstimatorSource: "deviceProfile")
+        recorder.flush()
+        let observationsAfterSource = try Data(contentsOf: file).split(separator: 0x0A).map {
+            try decoder.decode(BatteryTelemetryRecorder.Observation.self, from: Data($0))
+        }
+        XCTAssertEqual(observationsAfterSource.count, 3)
+        XCTAssertEqual(observationsAfterSource[2].selectedEstimatorSource, "deviceProfile")
+
+        // Opting out restores the legacy write-everything behavior.
+        let verboseDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BatteryTelemetryRecorderTests-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: verboseDirectory) }
+        let verboseRecorder = BatteryTelemetryRecorder(directory: verboseDirectory,
+                                                       clock: { now },
+                                                       skipRepeatedObservations: false,
+                                                       powerReader: { _, _ in
+                                                           BatteryPowerSample(volts: 12, amps: -1, updatedAt: now)
+                                                       })
+        verboseRecorder.record(reading, at: now)
+        verboseRecorder.record(reading, at: now.addingTimeInterval(15))
+        verboseRecorder.flush()
+        let verboseFile = try XCTUnwrap(FileManager.default.contentsOfDirectory(
+            at: verboseDirectory, includingPropertiesForKeys: nil).first)
+        let verboseObservations = try Data(contentsOf: verboseFile).split(separator: 0x0A).map {
+            try decoder.decode(BatteryTelemetryRecorder.Observation.self, from: Data($0))
+        }
+        XCTAssertEqual(verboseObservations.count, 2)
+        XCTAssertTrue(verboseObservations[1].batteryReadingRepeated)
+        XCTAssertEqual(verboseObservations[1].powerSampleRepeated, true)
 
         let staleDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("BatteryTelemetryRecorderTests-\(UUID().uuidString)")

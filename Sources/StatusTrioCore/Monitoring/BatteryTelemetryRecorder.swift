@@ -72,6 +72,9 @@ final class BatteryTelemetryRecorder: @unchecked Sendable {
     typealias PowerReader = @Sendable (BatteryPowerState, Date) -> BatteryPowerSample?
 
     static let retention: TimeInterval = BatteryLongTermBaseline.retentionHorizon
+    /// Observations whose fingerprint matches the last written one are skipped
+    /// (idle sessions used to append one ~1.1 KB line per refresh interval).
+    static let cleanupInterval: TimeInterval = 60 * 60
     static let defaultDirectory = FileManager.default.urls(
         for: .applicationSupportDirectory, in: .userDomainMask
     )[0].appendingPathComponent("StatusTrio/BatteryTelemetry", isDirectory: true)
@@ -81,21 +84,49 @@ final class BatteryTelemetryRecorder: @unchecked Sendable {
     private let directory: URL
     private let clock: @Sendable () -> Date
     private let powerReader: PowerReader
+    private let skipRepeatedObservations: Bool
     private var lastCleanupDay: String?
+    private var lastCleanupDate: Date?
     private var lastReading: BatteryReading?
     private var lastPowerUpdatedAt: Date?
     private var lastPowerState: BatteryPowerState?
+    private var lastSkipFingerprint: SkipFingerprint?
     private let logger = Logger(subsystem: "com.lingsmbp.StatusTrio", category: "battery-telemetry")
+
+    /// Everything that can change between observations while the raw battery
+    /// reading stays identical; if none of it changed, the line adds nothing
+    /// for offline validation.
+    private struct SkipFingerprint: Equatable {
+        var powerUpdatedAt: Date?
+        var powerState: BatteryPowerState
+        var boundaryReason: String?
+        var lowPowerMode: Bool?
+        var chargingPauseState: Bool?
+        var chargingPauseReason: String?
+        var estimatorMinutes: Int?
+        var profileEstimatorMinutes: Int?
+        var legacyEstimatorMinutes: Int?
+        var selectedEstimatorSource: String?
+        var actualSource: String?
+        var displayedMinutes: Int?
+        var estimatorMode: String?
+        var estimatorDischargeState: String?
+    }
 
     init(directory: URL = defaultDirectory,
          clock: @escaping @Sendable () -> Date = Date.init,
+         skipRepeatedObservations: Bool = true,
          powerReader: @escaping PowerReader = { state, now in
              BatteryDetailsReader().read(state: state, notBefore: nil,
                                          includeSystemPower: false).power
          }) {
         self.directory = directory
         self.clock = clock
+        self.skipRepeatedObservations = skipRepeatedObservations
         self.powerReader = powerReader
+        queue.async { [self] in
+            performCleanupIfNeeded(now: clock())
+        }
     }
 
     func record(_ reading: BatteryReading, at date: Date,
@@ -126,6 +157,29 @@ final class BatteryTelemetryRecorder: @unchecked Sendable {
                 let systemMinutes = reading.isCharging
                     ? reading.timeToFullChargeMinutes : reading.remainingMinutes
                 return systemMinutes == minutes ? "system" : "unknown"
+            }
+            let fingerprint = SkipFingerprint(
+                powerUpdatedAt: power?.updatedAt,
+                powerState: state,
+                boundaryReason: boundaryReason,
+                lowPowerMode: lowPowerMode,
+                chargingPauseState: chargingPauseState,
+                chargingPauseReason: chargingPauseReason,
+                estimatorMinutes: estimatorMinutes,
+                profileEstimatorMinutes: profileEstimatorMinutes,
+                legacyEstimatorMinutes: legacyEstimatorMinutes,
+                selectedEstimatorSource: selectedEstimatorSource,
+                actualSource: diagnostics.actualSource,
+                displayedMinutes: displayedMinutes,
+                estimatorMode: diagnostics.mode,
+                estimatorDischargeState: diagnostics.dischargeState
+            )
+            if skipRepeatedObservations, lastReading == reading,
+               let lastFingerprint = lastSkipFingerprint, lastFingerprint == fingerprint {
+                // Same reading and same derived values as the last written line;
+                // skip the write but keep the cleanup cadence moving.
+                performCleanupIfNeeded(now: powerReadAt)
+                return
             }
             let observation = Observation(
                 schemaVersion: 7,
@@ -199,6 +253,7 @@ final class BatteryTelemetryRecorder: @unchecked Sendable {
             do {
                 try append(observation)
                 lastReading = reading
+                lastSkipFingerprint = fingerprint
                 if let power {
                     lastPowerUpdatedAt = power.updatedAt
                     lastPowerState = state
@@ -211,14 +266,24 @@ final class BatteryTelemetryRecorder: @unchecked Sendable {
     /// Used by tests and diagnostic checks; normal recording remains asynchronous.
     func flush() { queue.sync {} }
 
+    private func performCleanupIfNeeded(now: Date, day: String? = nil) {
+        let day = day ?? Self.dayName(for: now)
+        let cleanupDue = lastCleanupDay != day
+            || lastCleanupDate.map { now.timeIntervalSince($0) >= Self.cleanupInterval } ?? true
+        guard cleanupDue else { return }
+        do {
+            try removeExpiredFiles(now: now)
+            lastCleanupDay = day
+            lastCleanupDate = now
+        }
+        catch { logger.error("Battery telemetry cleanup failed: \(error.localizedDescription)") }
+    }
+
     private func append(_ observation: Observation) throws {
         let manager = FileManager.default
         try manager.createDirectory(at: directory, withIntermediateDirectories: true)
         let day = Self.dayName(for: observation.recordedAt)
-        if lastCleanupDay != day {
-            try removeExpiredFiles(now: observation.recordedAt)
-            lastCleanupDay = day
-        }
+        performCleanupIfNeeded(now: observation.recordedAt, day: day)
         let file = directory.appendingPathComponent("\(day).jsonl")
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
