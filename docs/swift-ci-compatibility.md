@@ -32,7 +32,7 @@
 | （本地，非失败记录） | 本机 `swift test` | 新加的 `VolumeFeedbackTests.preferenceTreatsAMissingKeyAsEnabled` 想用 suites 断言「键不存在时按开启处理」，而 `UserDefaults(suiteName:)` 的搜索链在 suite 域之后仍会落到 `NSGlobalDomain`：全新 suite 读到的是本机 `com.apple.sound.beep.feedback`。开发机把这个开关关成 `0`（0 = 关）之后该测试即失败，CI runner 上（该键缺失）却一直是绿的——失效的是测试对「suite 隔离」的假设，不是产品行为 | 把判断拆成纯函数 `SystemVolumeFeedbackPreference.isEnabled(storedValue:)`，「缺失按开启」由它覆盖，suite 只留给显式写值的用例；顺带给两个未注入 feedback 播放器的既有 store 测试补上假播放器，免得在开关打开的机器上跑测试时真的出声。后续预检 `35851597428` 全绿 |
 | `44886032024`（fork 非发布预检） | `Run tests` | Swift 6.3.3 无法在合理时间对 `BatteryTimeEstimator.add` 中连续五段 `??` 与闭包条件组成的 `boundaryReason` 表达式完成类型检查；本机 Swift 6.4 可以编译，所以本地 `swift test` 未暴露该 CI 差异 | 把边界判断拆成 `contextChanged` / `modeChanged` / `targetChanged` 与显式 `if` 链，保持原有优先级和返回值不变；后续预检 `44886271965` 已通过编译和镜像测试，但在 `Run tests` 暴露了下一行的静态像素差异 |
 | `44886271965`（fork 非发布预检） | `Run tests` | `ChargingEffectRenderingTests.nilPhaseKeepsThePreEffectStaticPixelFingerprint` 断言固定的 `224850…`，而 AppKit 在 macOS 26 CI 上栅格化同一系统符号得到 `4d795d…`；本机 macOS 27 得到 `a004b8…`。失效的是测试对“所有平台逐像素一致”的假设，不是图标或电池逻辑 | 保留精确断言，只接受三个实测基线（原始 `224850…`、macOS 26 CI `4d795d…`、macOS 27 本机 `a004b8…`）；未知环境的输出仍会失败，不做模糊匹配。后续预检 `44886821658` 的 `Run tests` 已通过 |
-| `44886821658`（fork 非发布预检） | `Build, sign, notarize, and publish` | 预检使用 `version=1.10.4`，但仓库只有 `release-notes/1.3.8` 及更早目录。`Validate appcast notes` 在 `publish=false` 时会对缺失目录只发 notice，`scripts/release.sh` 的说明目录检查却不受 `PUBLISH` 限制，因此测试全绿后仍在构建开始前退出 | 改用与 `Support/Info.plist` 一致的 `version=1.3.8`、递增的 `build=54` 重跑；后续预检待重跑 |
+| `44886821658`（fork 非发布预检） | `Build, sign, notarize, and publish` | 预检使用 `version=1.10.4`，但仓库只有 `release-notes/1.3.8` 及更早目录。`Validate appcast notes` 在 `publish=false` 时会对缺失目录只发 notice，`scripts/release.sh` 的说明目录检查却不受 `PUBLISH` 限制，因此测试全绿后仍在构建开始前退出 | 改用与 `Support/Info.plist` 一致的 `version=1.3.8`、递增的 `build=54` 重跑；后续预检 `44887133022` 全部通过：1077 个 XCTest（6 跳过）、325 个 Swift Testing（53 个 suite）、release 构建、DMG 打包和 artifact 上传成功，未创建 Release 或 tag，也未更新 appcast |
 
 > **本轮结束时构建不是零警告：** 上面的修复只清掉了 `weak var` 那 4 条 `WeakMutability` 和 Task 1 的 1 条 `String(cString:)`，共 5 条；剩下 **2 条**警告是 `WiFiPasswordStore.swift` 的 `kSecUseAuthenticationUIFail` / `kSecUseAuthenticationUIAllow` 弃用，属于 R-12（Keychain 加固）计划，class B，尚未开始。不要把本轮记录读成「构建已经干净」。
 
@@ -75,6 +75,15 @@ appcast 改动。
 未发布 Release、未创建 tag、appcast 未更新。派发前先在本地跑通了 `swift test` 与
 `swift build -c release`，并把 `release-notes/1.3.3/` 的 `en.md` 与 `zh-Hans.md`
 随分支一起提交，所以这次没有再撞上上一节那个 notes 目录门槛。
+
+## 电池部分曲线学习预检
+
+部分充电/放电曲线学习合并后，fork 非发布预检
+[`44887133022`](https://github.com/ZhangEx18/status-trio/actions/runs/44887133022)
+（`version=1.3.8`、`build=54`、`publish=false`）全部通过：1077 个 XCTest（6 跳过）、
+325 个 Swift Testing（53 个 suite）、release 构建、`StatusTrio-1.3.8.dmg` 打包和
+`StatusTrio-4` artifact 上传成功。该次预检的 head 是 `ea3d4062`；Swift 代码和测试
+冻结在 `324e451c`，其后只改 CI 历史 Markdown。未创建 Release 或 tag，未更新 appcast。
 
 ## 失败记录规则
 
