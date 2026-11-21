@@ -239,14 +239,28 @@ struct BatteryTimeEstimator {
             abs(change) > Self.maximumSegmentCapacityChange || (mode == .discharging && change > 1)
                 || (mode == .charging && change < -1)
         )
-        let boundary = nextSampleStartsSegment || last.map {
+        let contextChanged = last.map {
             $0.mode != mode || $0.target != normalizedTarget || $0.lowPowerMode != lowPowerMode || gap > Self.maximumGap
-        } == true || implausible
-        let boundaryReason: Sample.BoundaryReason? = pendingBoundaryReason
-            ?? (gap > Self.maximumGap ? .gap : nil)
-            ?? (implausible ? .capacityJump : nil)
-            ?? (last.map { $0.mode != mode || $0.lowPowerMode != lowPowerMode } == true ? .powerTransition : nil)
-            ?? (last.map { $0.target != normalizedTarget } == true ? .target : nil)
+        } == true
+        let boundary = nextSampleStartsSegment || contextChanged || implausible
+        let modeChanged = last.map {
+            $0.mode != mode || $0.lowPowerMode != lowPowerMode
+        } == true
+        let targetChanged = last.map { $0.target != normalizedTarget } == true
+        let boundaryReason: Sample.BoundaryReason?
+        if let pendingBoundaryReason {
+            boundaryReason = pendingBoundaryReason
+        } else if gap > Self.maximumGap {
+            boundaryReason = .gap
+        } else if implausible {
+            boundaryReason = .capacityJump
+        } else if modeChanged {
+            boundaryReason = .powerTransition
+        } else if targetChanged {
+            boundaryReason = .target
+        } else {
+            boundaryReason = nil
+        }
         if boundary {
             dischargeStateMachine.reset()
             chargingReferenceMinutesPerPoint = nil
