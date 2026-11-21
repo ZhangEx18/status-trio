@@ -19,7 +19,15 @@ struct ChargingEffectRenderingTests {
             .map { String(format: "%02x", $0) }
             .joined()
 
-        #expect(fingerprint == "224850873cf3d786d2fe246a1b1f15c092e34297dfb944832284b2fbf671bd74")
+        // AppKit rasterizes the system symbols differently across macOS and
+        // display scale. Keep only exact observed static baselines so an
+        // unknown environment still fails instead of accepting any output.
+        let knownPlatformFingerprints = [
+            "224850873cf3d786d2fe246a1b1f15c092e34297dfb944832284b2fbf671bd74",
+            "4d795d40269a978007765c4d4d20922982b140207d34d7ddcaeb25368c9a5591", // macOS 26 CI
+            "a004b8b0b0bf6fa614cf13f7482f856f1182489580670f074537572b22027922", // macOS 27 local
+        ]
+        #expect(knownPlatformFingerprints.contains(fingerprint))
     }
 
     @Test func nonChargingBatteryIgnoresSuppliedChargingPhase() throws {
